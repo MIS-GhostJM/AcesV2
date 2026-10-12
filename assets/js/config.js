@@ -20,12 +20,13 @@ window.ACES_CONFIG = {
     client: 'ca-pub-6978764838614552',
     // Paste real ad-unit IDs (AdSense > Ads > By ad unit). An empty ID keeps that placement switched off.
     //   end / links / banner : as before.      (The Scripts page has no horizontal units any more: no `feed`, and `end` is Checklist-only, see endPages.)
+    //   float                : the floating bar of narrow windows (see `float` below). Falls back to `rail`, then `banner`. A dedicated unit gives it its own report line.
     //   rail                 : the sticky desktop column (Scripts + Checklist). Falls back to `banner`. Create a dedicated display unit for it
     //                          (AdSense > Ads > By ad unit) so its earnings show up on their own line in the reports.
     //   notesBar             : strip above the Freeflow text area (falls back to `banner`).
     //   notesSide            : the 20% column beside the Freeflow text area. Pre-filled with your retired rail unit (6965605774); create a fresh display unit
     //                          for it in AdSense if that one was a fixed size, because the column serves 300x600 / 160x600 / 300x250 / 250x250. Empty = column off.
-    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', notesBar: '', notesSide: '6965605774', rail: '' },
+    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', notesBar: '', notesSide: '6965605774', rail: '', float: '' },
     endPages: ['checklist'],                                          // end-of-page unit: Checklist only. The Scripts page keeps just the sticky right rail
 
     // WHEN a unit may load (the RPM part). A box is set aside while it is still off screen, so nothing moves under the agent's pointer, and
@@ -53,6 +54,13 @@ window.ACES_CONFIG = {
     // user-requested ads, so `renewMinSec` is our own conservative floor. Set enabled:false to switch the rail off.
     // pages: where it appears (Errand-Notes never gets ads: customer data on screen).
     rail: { enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 60 },
+    // Floating bar for windows narrower than rail.minViewportW (the rail does not fit there): ONE unit docked between the content and the footer,
+    // always visible, never moving with the scroll. It is a row of the app grid, so the content area ends above it: the last script card stops above
+    // the bar and nothing is covered. Same request / renewal rules as the rail (renewMinSec above). Errand-Notes stays ad-free (customer data on screen):
+    // add 'errands' to `pages` only after checking that against the client's policy. Links and Freeflow keep their own units; set `ads.notes.bar:false`
+    // or `slots.links:''` if you want only the floating bar on those two.
+    //   sizes: tried in order, first one that fits the content width.      minViewportH: below this window height no bar (it would eat the screen).
+    float: { enabled: true, pages: ['scripts', 'checklist', 'links', 'notes'], sizes: [[728, 90], [320, 100]], minViewportH: 560 },
     end: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },     // one unit after the last item (Checklist page)
     links: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },   // bottom strip of the Links tab
 

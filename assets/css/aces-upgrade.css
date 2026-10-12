@@ -234,7 +234,7 @@ body { overflow-y:hidden; }
 
 /* ===== Footer: permanent row of the app grid; never moves with content ===== */
 :root { --foot-h:36px; }
-.app-body { display:grid; grid-template-columns:88px minmax(0,1fr); grid-template-rows:minmax(0,1fr) var(--foot-h); grid-template-areas:"nav main" "foot foot"; }
+.app-body { display:grid; grid-template-columns:88px minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto var(--foot-h); grid-template-areas:"nav main" "nav bar" "foot foot"; }   /* `bar` = floating ad row, 0 high when there is none */
 .side-panel { grid-area:nav; min-height:0; }
 .main-page { grid-area:main; min-height:0; }
 .site-footer { grid-area:foot; position:relative; z-index:50; height:var(--foot-h); margin:0; display:flex; align-items:center; }
@@ -252,7 +252,7 @@ body { overflow-y:hidden; }
 }
 @media (max-width:768px) {
   :root { --foot-h:40px; }
-  .app-body { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) var(--foot-h) auto; grid-template-areas:"main" "foot" "nav"; }
+  .app-body { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto var(--foot-h) auto; grid-template-areas:"main" "bar" "foot" "nav"; }
   .sk-row { grid-template-columns:1fr; } .sk-title { min-height:56px; }
 }
 
@@ -343,10 +343,10 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 @media (max-width:768px) { .freeflow-body { padding:8px; } }
 
 /* Update toast: bottom-left, above the footer; announced politely */
-.aces-toast { position:fixed; left:calc(88px + 16px); bottom:calc(var(--foot-h, 36px) + 14px); z-index:400; max-width:min(420px, calc(100vw - 32px)); padding:10px 14px; border-radius:10px; background:#1a252f; color:#fff; font-size:14px; line-height:1.4; border:1px solid rgba(255,255,255,.35); box-shadow:0 10px 28px rgba(0,0,0,.45); opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
+.aces-toast { position:fixed; left:calc(88px + 16px); bottom:calc(var(--foot-h, 36px) + var(--float-h, 0px) + 14px); z-index:400; max-width:min(420px, calc(100vw - 32px)); padding:10px 14px; border-radius:10px; background:#1a252f; color:#fff; font-size:14px; line-height:1.4; border:1px solid rgba(255,255,255,.35); box-shadow:0 10px 28px rgba(0,0,0,.45); opacity:0; transform:translateY(8px); pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
 .aces-toast.show { opacity:1; transform:none; pointer-events:auto; }
 .aces-toast button { margin-left:12px; min-height:32px; padding:0 14px; border:0; border-radius:8px; background:#fff; color:#1c2630; font-weight:600; cursor:pointer; }
-@media (max-width:768px) { .aces-toast { left:12px; right:12px; bottom:calc(var(--foot-h, 40px) + var(--bar-h, 60px) + env(safe-area-inset-bottom) + 12px); max-width:none; } }
+@media (max-width:768px) { .aces-toast { left:12px; right:12px; bottom:calc(var(--foot-h, 40px) + var(--float-h, 0px) + var(--bar-h, 60px) + env(safe-area-inset-bottom) + 12px); max-width:none; } }
 
 /* ===== Round 8: reserved ad boxes (nothing moves when an ad arrives), rectangle width cap, bigger Freeflow strip ===== */
 .ad-slot.is-reserved { max-height:none; opacity:1; min-height:calc(var(--ad-reserve, 0px) + var(--ad-chrome, 44px)); margin:24px 12px; padding:8px;
@@ -370,8 +370,16 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 .has-rail > .ad-rail ins.adsbygoogle { max-width:100%; }
 .tabs-open .ad-rail { visibility:hidden; }                               /* the open tab rail is covering the page edge */
 /* Round 11: a replacement unit waits on top of the current ad (same grid cell, same size) and shows nothing until AdSense has filled it, so the old ad stays visible meanwhile */
-.ad-rail.is-staged:not(.is-filled) { border-color:transparent; background:transparent; }
-.ad-rail.is-staged:not(.is-filled) .ad-label { visibility:hidden; }
+.ad-slot.is-staged:not(.is-filled) { border-color:transparent; background:transparent; }
+.ad-slot.is-staged:not(.is-filled) .ad-label { visibility:hidden; }
 .search-active .script-canvas.has-rail { display:block; }                 /* search results use the full width */
 .search-active .script-canvas.has-rail > .ad-rail { display:none; }
+/* ===== Round 13: floating bar above the footer (windows too narrow for the rail) ===== */
+/* A row of the app grid (see .app-body): fixed in place, content ends above it, so the last script card is never covered. 6px of air above the footer's buttons. */
+.ad-float { grid-area:bar; min-width:0; }
+.ad-slot.ad-float.is-reserved { --ad-chrome:30px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; margin:0 0 6px; padding:3px 8px; border-width:1px 0 0; border-radius:0; max-height:none; overflow:hidden; background:rgba(0,0,0,.22); }
+.ad-slot.ad-float .ad-label { margin:0; flex:none; }
+.ad-slot.ad-float ins.adsbygoogle { max-width:100%; }
+@media (min-width:769px) { .ad-slot.ad-float.is-reserved { --ad-chrome:10px; flex-direction:row; gap:12px; } }   /* label beside the ad, like the Freeflow strip */
+.app-body.no-float > .ad-float, .ad-float.is-oversize, .search-active .ad-float { display:none !important; }   /* other section / window too small / search results */
 .ad-slot.is-reserved { transition:none; }                                  /* a box that opens over 0.5 s pushes the cards below it down frame by frame (many small layout shifts); open it instantly instead */

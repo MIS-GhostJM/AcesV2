@@ -7,6 +7,10 @@
   // the ad on screen was rendered more than `rail.renewMinSec` ago, and never on a timer. The old ad stays until the new one has arrived. A switch
   // while an earlier request is still unanswered sends nothing (it is dropped, not queued); only a "no fill" answer lets the next switch ask again.
   //
+  // Narrow windows (< rail.minViewportW, where the rail does not fit): ONE floating bar, docked in the app grid between the content and the footer.
+  // It follows the rail's rules exactly (requested once seen; renewed when the agent switches category / checklist / section, subject to the
+  // renewMinSec floor; old ad kept until the new one arrives; switches while a request is unanswered are dropped).
+  //
   // Life of a slot:  planned (zero size)  ->  reserved (blank labelled box, set aside while it is still off screen, so nothing moves later)
   //                  ->  requested (only while >= viewRatio of the box is on screen for dwellMs, the window is focused and the agent is active)
   //                  ->  filled (box keeps its reserved height, so nothing moves when the creative arrives) or empty (box disappears).
@@ -17,6 +21,7 @@
   const L = Object.assign({ format: 'rectangle', reservePx: 280, boxMaxPx: 336 }, cfg.links);
   const N = Object.assign({ bar: true, barSizes: [[728, 90], [320, 100]], side: true, sidePct: 20, sideMinPageWidth: 720, sideSizes: [[300, 600], [160, 600], [300, 250], [250, 250]] }, cfg.notes);
   const R = Object.assign({ enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 60 }, cfg.rail);
+  const F = Object.assign({ enabled: true, pages: ['scripts', 'checklist', 'links', 'notes'], sizes: [[728, 90], [320, 100]], minViewportH: 560 }, cfg.float);
   const track = (n, p) => window.acesTrack?.(n, p), page = () => document.body.dataset.page || 'scripts';
   const $ = s => document.querySelector(s);
   const pick = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
@@ -53,13 +58,15 @@
   const engaged = () => document.visibilityState === 'visible' && (!G.requireFocus || document.hasFocus()) && Date.now() - lastInput < G.idleSec * 1000;
 
   const inView = new Map();                  // slot -> time it first had >= viewRatio on screen
-  let near, view, ticker;
+  let near, view, viewV, ticker;                // viewV: same job as `view` for units outside .main-page (the floating bar), measured against the window
   function setup() {
     const root = $('.main-page');
     near = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { near.unobserve(e.target); reserve(e.target); } }), { root, rootMargin: `${G.lookaheadPx}px 0px` });
-    view = new IntersectionObserver(es => es.forEach(e => {
+    const seen = es => es.forEach(e => {
       if (e.isIntersecting && e.intersectionRatio >= G.viewRatio) { if (!inView.has(e.target)) inView.set(e.target, Date.now()); } else inView.delete(e.target);
-    }), { root, threshold: [0, .25, G.viewRatio, .75, 1] });
+    });
+    view = new IntersectionObserver(seen, { root, threshold: [0, .25, G.viewRatio, .75, 1] });
+    viewV = new IntersectionObserver(seen, { root: null, threshold: [0, .25, G.viewRatio, .75, 1] });
     ticker = setInterval(tick, 400);
   }
   const watch = slot => {
@@ -70,13 +77,13 @@
     const m = $('.main-page').getBoundingClientRect(), r = slot.getBoundingClientRect();
     if (r.top < m.bottom + G.lookaheadPx && r.bottom > m.top - G.lookaheadPx) { near.unobserve(slot); reserve(slot); }
   };
-  const forget = slot => { near?.unobserve(slot); view?.unobserve(slot); inView.delete(slot); };
+  const forget = slot => { near?.unobserve(slot); view?.unobserve(slot); viewV?.unobserve(slot); inView.delete(slot); };
 
   function reserve(slot) {                   // set the box aside while it is still off screen (or the moment it appears), then wait for it to be seen
     if (slot.dataset.requested || !slot.isConnected) return;
     slot.classList.add('is-reserved');
     slot.dispatchEvent(new CustomEvent('ad:reserved'));
-    view.observe(slot);
+    (slot.dataset.root === 'viewport' ? viewV : view).observe(slot);
   }
   function tick() {                          // one request per tick at most, never a burst
     if (!inView.size || !engaged() || !rateOk()) return;
@@ -84,7 +91,7 @@
     for (const [slot, since] of inView) {
       if (!slot.isConnected) { inView.delete(slot); continue; }
       if (now - since < G.dwellMs) continue;
-      const r = slot.getBoundingClientRect(), root = $('.main-page').getBoundingClientRect();
+      const r = slot.getBoundingClientRect(), root = slot.dataset.root === 'viewport' ? { top: 0, bottom: innerHeight } : $('.main-page').getBoundingClientRect();
       const shown = Math.max(0, Math.min(r.bottom, root.bottom) - Math.max(r.top, root.top)) / (r.height || 1);
       forget(slot); request(slot, Math.round(shown * 100));
       return;
@@ -127,7 +134,7 @@
   function viewChanged() {                                           // runs after the clicked category is on screen
     const t = activeTab();
     if (t === lastTab) return;                                       // same category clicked again: no new request
-    lastTab = t; renewRail('scripts');
+    lastTab = t; renewRail('scripts'); renewFloat();
   }
 
 
@@ -151,7 +158,7 @@
     const canvas = $(spec.canvas), bar = $(spec.bar);
     if (!canvas || !bar || !canvas.firstElementChild) return;
     const size = railSize(bar); if (!size) return;
-    const r = rails[page] = { page, canvas, bar, size, id, el: null, next: null, shownAt: 0, dead: false };
+    const r = rails[page] = { page, canvas, bar, size, id, host: canvas, cls: 'ad-rail', key: 'rail', release: () => canvas.classList.remove('has-rail'), el: null, next: null, shownAt: 0, dead: false };
     canvas.style.setProperty('--rail-col', size[0] + 14 + 'px');
     canvas.style.setProperty('--rail-gap', R.gapPx + 'px');
     const top = () => canvas.style.setProperty('--rail-top', Math.round(bar.getBoundingClientRect().height) + R.topGapPx + 'px');
@@ -164,19 +171,19 @@
     track('ads.rail.mounted', { page, value: size[1] });
   }
   function attachRail(r, el) {                                       // the FIRST unit of a page (replacements go through stageRail)
-    r.el = el; r.canvas.append(el); r.sync();
+    r.el = el; r.host.append(el); r.sync?.();
     if (!near) setup();
     reserve(el);                                                     // set the box aside this frame; AdSense is asked only once it has been seen (gate)
     el.addEventListener('ad:status', e => {
       if (e.detail === 'filled') r.shownAt = Date.now();             // "rendered" = the moment the creative arrived
       else unmountRail(r);                                           // the first request found no ad (or it is blocked): give the column back, once, early
     });
-    requestAnimationFrame(() => { if (el.isConnected && !el.offsetHeight) unmountRail(r); });   // a blocker's cosmetic filter hid the box
+    requestAnimationFrame(() => { if (el.isConnected && !el.offsetHeight && !r.hidden?.()) unmountRail(r); });   // a blocker's cosmetic filter hid the box
   }
   function unmountRail(r) {
     r.dead = true; cancelNext(r, 'unmounted');
     if (r.el) { forget(r.el); r.el.remove(); }
-    r.canvas.classList.remove('has-rail'); track('ads.rail.unmounted', { page: r.page });
+    r.release(); track('ads.rail.unmounted', { page: r.page });
   }
 
   // Renewal = a NEW unit is staged on top of the current one (same grid cell, same size, invisible until AdSense fills it). The current ad stays on
@@ -187,7 +194,10 @@
     track('ads.rail.cancelled', { page: r.page, label: why });
   }
   function stageRail(r) {
-    const fresh = make('ad-rail', 'rail', r.id, { size: r.size });
+    const size = r.pickSize ? r.pickSize() : r.size; if (!size) return;       // the floating bar re-picks its size for the window it is in now
+    r.size = size;
+    const fresh = make(r.cls, r.key, r.id, { size });
+    if (r.viewport) fresh.dataset.root = 'viewport';
     fresh.classList.add('is-staged'); r.next = fresh;
     fresh.addEventListener('ad:status', e => {
       if (r.next !== fresh) return;                                  // cancelled or unmounted in the meantime
@@ -199,12 +209,13 @@
       fresh.classList.remove('is-staged');
       setTimeout(() => { if (old) { forget(old); old.remove(); } }, 400);   // short overlap so the column is never blank while the new creative paints
     });
-    r.canvas.append(fresh);                                          // after the current unit in the DOM = painted on top of it
+    r.host.append(fresh);                                            // after the current unit in the DOM = painted on top of it
     reserve(fresh);                                                  // AdSense is asked only once it has been seen (gate), like every other unit
     track('ads.rail.renew', { page: r.page });
   }
-  function renewRail(page) {                                         // called after a user switched to a DIFFERENT category / checklist
-    const r = rails[page]; if (!r || r.dead || !r.el) return;
+  function renewRail(page) { const r = rails[page]; if (r) renewUnit(r); }   // called after a user switched to a DIFFERENT category / checklist
+  function renewUnit(r) {
+    if (r.dead || !r.el) return; const page = r.page;
     // A request that has not been answered yet (waiting for its turn, or sent and not filled / unfilled yet) is never cancelled or replaced: the new
     // switch sends NOTHING. Only an answer frees the slot: "no fill" lets the next switch ask again, "filled" starts the renewMinSec clock.
     if (r.next || (r.el.dataset.requested && !r.shownAt)) { track('ads.rail.renew_skipped', { page, label: 'pending' }); return; }
@@ -212,6 +223,40 @@
     if (Date.now() - r.shownAt < R.renewMinSec * 1000) { track('ads.rail.renew_skipped', { page, label: 'min_age' }); return; }   // current ad rendered < renewMinSec ago: keep it
     stageRail(r);
   }
+
+  // ---- Floating bar (windows narrower than rail.minViewportW, where the sidebar rail does not fit) ----
+  // Docked, not overlaid: the bar is its own row of the app grid, between the content and the footer. It never moves with the scroll, and because the
+  // content area simply ends above it, the last script card always stops above the bar and nothing is ever covered or underlapped (Google's sticky-ad
+  // condition). No bar = no row = no space taken. Same lifecycle as the rail: requested once seen, renewed by the same rules (renewUnit).
+  const fl = { page: 'float', cls: 'ad-float', key: 'float', viewport: true, host: null, el: null, next: null, shownAt: 0, dead: false, size: null, id: null };
+  const floatId = () => S.float || S.rail || S.banner;
+  const floatAllowed = () => F.enabled && !fl.dead && !window.ACES_ADS_BLOCKED && innerWidth < R.minViewportW && (F.pages || []).includes(page());
+  fl.pickSize = () => { const w = $('.main-page').clientWidth; return innerHeight < F.minViewportH ? null : (F.sizes || []).find(s => s[0] + 24 <= w) || null; };
+  fl.hidden = () => document.body.classList.contains('search-active') || !!fl.host?.classList.contains('no-float');
+  fl.release = () => floatVars();
+  function floatVars() {                                             // toasts sit above the bar, not on it
+    const h = fl.el && !fl.dead && fl.el.offsetHeight ? fl.el.offsetHeight + 6 : 0;
+    document.documentElement.style.setProperty('--float-h', h + 'px');
+  }
+  function mountFloat() {
+    const id = floatId(), host = $('.app-body');
+    if (!id || !host || fl.el || fl.dead) return;
+    const size = fl.pickSize(); if (!size) return;
+    fl.host = host; fl.id = id; fl.size = size;
+    const el = make('ad-float', 'float', id, { size }); el.dataset.root = 'viewport';
+    attachRail(fl, el);
+    el.addEventListener('ad:status', () => requestAnimationFrame(floatVars));
+    new ResizeObserver(floatVars).observe(el);
+    track('ads.rail.mounted', { page: 'float', value: size[1] });
+  }
+  function syncFloat() {                                             // after a page change, a resize or a width-breakpoint change
+    const on = floatAllowed();
+    if (on && !fl.el) mountFloat();
+    ($('.app-body')).classList.toggle('no-float', !on);               // hides the bar and any waiting unit (CSS)
+    if (fl.el) fl.el.classList.toggle('is-oversize', +fl.el.dataset.size.split('x')[0] + 24 > $('.main-page').clientWidth);   // never clip a creative
+    floatVars();
+  }
+  const renewFloat = () => { if (fl.el && floatAllowed()) renewUnit(fl); };
 
   // ---- Freeflow notes: strip above the text area + a column at 20% width on its right (high-demand sizes only) ----
   let notesDone = false;
@@ -253,6 +298,7 @@
     if (p === 'links') linksFeed();
     if (p === 'checklist') requestAnimationFrame(() => { mountRail('checklist'); lastList = $('.listnav-btn.active')?.id || null; });
     if (p === 'notes') requestAnimationFrame(notesAds);
+    requestAnimationFrame(() => { syncFloat(); renewFloat(); });      // a different section = new content = a user-requested renewal of the floating bar
   }
 
   window.AcesAds = {
@@ -267,8 +313,10 @@
       });
       $('.check-list-nav-container')?.addEventListener('click', e => {   // a different checklist = new content = a user-requested renewal of the rail
         if (!e.target.closest('button')) return;
-        requestAnimationFrame(() => { const a = $('.listnav-btn.active')?.id || null; if (a !== lastList) { lastList = a; renewRail('checklist'); } });
+        requestAnimationFrame(() => { const a = $('.listnav-btn.active')?.id || null; if (a !== lastList) { lastList = a; renewRail('checklist'); renewFloat(); } });
       });
+      let raf = 0; addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(syncFloat); });
+      matchMedia(`(min-width:${R.minViewportW}px)`).addEventListener('change', syncFloat);
       lastTab = activeTab();
       if (page() === 'scripts') mountRail('scripts');                  // synchronously, so the column exists before the cards are first painted
     }
