@@ -108,3 +108,40 @@ Written without a browser. Do a live pass: tab through header -> tabs -> card ->
 6. Traffic location sets a ceiling on CPM (see Reports > Countries). Code cannot change it.
 
 Tested in headless Chromium (1366x768, 1920x1080, 390x800 and other phone sizes) with a stubbed ad script; not tested against live AdSense. Tab rail, update-and-restore, Freeflow scroll lock and Links layout were re-checked.
+
+## Round 9: sticky rail, layout-shift fixes, Auto ads decision (AdSense audit)
+
+**Audit result.** The ad lifecycle this repo needs already existed (Round 6-8): units are planned per category view, reserved before they scroll in, requested only when seen / focused / active, re-requested only after a user action, rate-capped, labelled, and never inside Errand-Notes. Nothing in `tabs.js` needed a new "refresh hook". What was missing, and is now in:
+
+| # | Change | Where | Why |
+|---|---|---|---|
+| 1 | **Sticky desktop rail** (300x600, or 300x250 when the screen is short), Scripts + Checklist | `assets/js/ads.js` (`mountRail`, `renewRail`), `assets/css/aces-upgrade.css` ("Round 9"), `ads.rail` + `slots.rail` in `assets/js/config.js` | A unit that stays on screen is the highest-viewability placement the page can offer. It sits in its own grid column, so it never overlaps content (see policy notes). Ships **on**; `rail.enabled: false` removes it. |
+| 2 | **Header layout shift fixed** | `index.html` (theme toggle is now static markup), `assets/js/app.js` (reuses it) | `app.js` injected the theme button into the header grid after first paint, which pushed every header item one column right. Measured in headless Chromium (no FontAwesome/CDN there, so read it as relative): CLS 0.18 -> 0.016 at 1366px and 0.186 -> 0.002 at 1100px. |
+| 3 | **Ad boxes open instantly** | `aces-upgrade.css` (`.ad-slot.is-reserved { transition:none }`), `ads.js` (`watch()` reserves synchronously when a unit is inserted inside the look-ahead zone) | Boxes used to grow over 0.5 s, which pushed cards down frame by frame. |
+| 4 | **Preconnect** to the three AdSense hosts; `onerror` flag on the AdSense `<script>` | `index.html` | Earlier first request; if the library is blocked no ad column is reserved. |
+| 5 | **Feed cap with a rail** | `ads.feed.maxPerViewWithRail` (4) | The screen already carries a permanent unit. |
+
+**Rail behaviour (all in `ads.js`).** Mounted synchronously before the first paint, so nothing reflows. Size is chosen once from the free height (never swapped after a request). Requested through the same gate as every other unit (>=50% visible for 1 s, window focused, agent active). Renewed only when the agent opens a different category / checklist, and at most every `renewMinSec` (90 s). First request unfilled or library blocked -> the column is handed back at once. A later renewal that is unfilled hides the box but keeps the column, so nothing reflows under the agent. Hidden while searching, while the tab overlay is open, and below `minViewportW` (1280 px). Not available on phones, Errand-Notes, Free-flow (it has its own column) or Links.
+
+**Policy notes (checked against Google's pages on 12 Oct 2026).**
+- *Refresh.* "Publishers are not permitted to refresh a page or an element of a page without the user requesting a refresh" (AdSense > Ad placement policies). Every re-request here follows a click on a different category / checklist. There is no timer anywhere.
+- *Sticky.* AdSense's own policy pages do not mention sticky units. Google's published sticky-ads guide offers a fixed-position unit as an AdSense option and lists the conditions: a vertical sticky unit must never overlap or underlap content, stay clear of navigation and scrollbars and other ads, show its label at all times, and scroll out where the content ends. The column layout satisfies these by construction; the guide also says to A/B test and that dynamic pages may not suit it. After deploying, watch AdSense > Policy center for a week, and compare viewability / RPM with the rail on and off (`rail.enabled`).
+- *Accidental clicks.* Google asks publishers to be careful with buttons, navigation and applications near ads. Script cards copy on click, so units stay 24 px clear of them. Do **not** put ads next to cards, copy actions or the tab chips.
+- *Private communication / customer data.* Keep Errand-Notes ad-free.
+- *Links tab.* It is a grid of link tiles with an ad strip under it. Ads that can be mistaken for links or navigation are a policy risk, and the page has almost no publisher content. Consider `slots.links: ''`.
+
+**Auto ads: leave them OFF for this site.**
+- *Anchor* and *Side rails* are overlay formats: they sit on top of the page. This app is a fixed-viewport shell with its own footer (and a bottom tab bar on phones), so an anchor would cover navigation, and side rails would cover content: accidental-click risk.
+- *Vignettes* are tied to page navigations that use real links (`<a href>`), not JavaScript routing. Tab switches here are buttons, so they would not fire "between tool steps"; they could fire on a full load or on the footer's legal links, and an interstitial in front of an agent who is mid-conversation costs far more than it earns.
+- *In-page* Auto ads would add units next to the manual ones and cannot be told where the cards are. If you want to test any Auto ads format, do it on a separate copy of the site.
+- *Multiplex / matched content* is a grid of recommended-content tiles for sites with articles to recommend. There is nothing here for it to sit beside, and on the Links tab it would look like more link tiles.
+
+**Account side (the biggest levers, not code).**
+1. AdSense > Sites: ads.txt must read "Authorized".
+2. Create dedicated display units for `rail`, `feed`, `notesBar`, `notesSide` and paste the IDs into `slots` (today `rail` and `feed` fall back to `banner`, which blends them in reports).
+3. Auto ads: OFF for this site (Ads > By site).
+4. If you ever get EEA/UK traffic: turn on the consent message (Privacy & messaging); `window.ACES_CONSENT.ads === false` already stops all units.
+5. Read Reports > By ad unit and By ad size after 3-7 days: Active View viewable, impressions per page view, impression RPM, page RPM. Traffic location sets a ceiling on CPM that no layout change can lift.
+
+**Tested** in headless Chromium with a stubbed ad script (not live AdSense, no CDN fonts): 1920x1080, 1366x768, 1280x720, 1100x800, 390x800; rail present / sticky / scrolls out at the end of the content; search, tab overlay, resize, renewal gap, blocked library, no-fill, checklist, other pages. Every request in the run was made with the box >=50% on screen. Not tested on a live Netlify deploy or with real creatives.
+

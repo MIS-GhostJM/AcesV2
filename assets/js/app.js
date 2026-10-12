@@ -20,10 +20,13 @@
   // theme toggle (card surfaces); follows the system setting until the agent chooses
   const root = document.documentElement, saved = ls.get('aces.theme');
   if (saved) root.dataset.theme = saved;
-  const wrap = document.createElement('div');
-  wrap.className = 'theme-wrap';
-  wrap.innerHTML = '<button type="button" class="theme-toggle" aria-label="Switch dark / light cards" title="Dark / light cards"><i class="fa-solid fa-circle-half-stroke"></i></button>';
-  $('.customer-input').before(wrap);
+  let wrap = $('.theme-wrap');                         // static in index.html: injecting it here re-flowed the header grid (layout shift) when this script ran
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'theme-wrap';
+    wrap.innerHTML = '<button type="button" class="theme-toggle" aria-label="Switch dark / light cards" title="Dark / light cards"><i class="fa-solid fa-circle-half-stroke"></i></button>';
+    $('.customer-input').before(wrap);
+  }
   wrap.firstChild.addEventListener('click', () => {
     const dark = (root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
     root.dataset.theme = dark ? 'light' : 'dark'; ls.set('aces.theme', root.dataset.theme);

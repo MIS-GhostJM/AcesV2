@@ -365,3 +365,16 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 .ad-ff-side.is-reserved { --ad-chrome:44px; margin:0; padding:6px; border-radius:8px; }
 .ad-slot.is-empty { display:none !important; }
 .search-active .ad-feed, .search-active .ad-end { display:none; }
+
+/* ===== Round 9: sticky ad column (desktop). The unit lives in its own grid column of the content, so it never overlaps or underlaps anything. ===== */
+.script-canvas.has-rail, .checklist-canvas.has-rail { display:grid; grid-template-columns:minmax(0,1fr) var(--rail-col, 314px); column-gap:var(--rail-gap, 16px); align-items:start; }
+.has-rail > .script-module, .has-rail > .checklist-module { grid-column:1; grid-row:1; min-width:0; }
+.checklist-canvas.has-rail { overflow:visible; }                           /* an overflow:auto parent would stop position:sticky from working */
+.ad-rail { display:none; }
+.has-rail > .ad-rail.is-reserved { display:flex; flex-direction:column; align-items:center; grid-column:2; grid-row:1; position:sticky; top:var(--rail-top, 64px);
+  min-height:calc(var(--ad-reserve, 250px) + var(--ad-chrome, 44px)); margin:0; padding:6px; border-radius:8px; max-height:none; overflow:hidden; }
+.has-rail > .ad-rail ins.adsbygoogle { max-width:100%; }
+.ad-rail.is-quiet, .tabs-open .ad-rail { visibility:hidden; }              /* no fill this time / the open tab rail is covering the page edge */
+.search-active .script-canvas.has-rail { display:block; }                 /* search results use the full width */
+.search-active .script-canvas.has-rail > .ad-rail { display:none; }
+.ad-slot.is-reserved { transition:none; }                                  /* a box that opens over 0.5 s pushes the cards below it down frame by frame (many small layout shifts); open it instantly instead */

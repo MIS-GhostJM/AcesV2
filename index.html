@@ -11,9 +11,13 @@
     <meta name="description" content="ACES: script, errand-note and checklist assistant for chat and voice agents.">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
     <title>A C E S</title>
-    <!-- AdSense library (units are placed by assets/js/ads.js; configure slots in assets/js/config.js) -->
+    <!-- Warm the ad connections early: the first request then waits less, so it is answered inside the 1 s the unit has to be seen -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
+    <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin>
+    <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin>
+    <!-- AdSense library (units are placed by assets/js/ads.js; configure slots in assets/js/config.js). onerror: a blocked library means no ad column is reserved -->
      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6978764838614552"
-     crossorigin="anonymous"></script>
+     crossorigin="anonymous" onerror="window.ACES_ADS_BLOCKED=true"></script>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -44,6 +48,7 @@
                     <i class="fa-solid fa-trash-can-arrow-up"></i>
                 </button>
             </div>
+            <div class="theme-wrap"><button type="button" class="theme-toggle" aria-label="Switch dark / light cards" title="Dark / light cards"><i class="fa-solid fa-circle-half-stroke"></i></button></div>
             <div class="customer-input">
                 <input type="text" id="customer" placeholder="Customer Name" aria-label="Customer name" autocomplete="off">
                 <i class="fa-solid fa-user-tie"></i>

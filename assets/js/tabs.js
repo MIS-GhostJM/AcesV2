@@ -41,6 +41,7 @@
     rail.style.setProperty('--clip-h', (open ? Math.min(st.full, cap) : st.collapsed) + 'px');
     rail.style.setProperty('--shift', (open ? 0 : (st.tops[st.start] || 0) - (st.tops[0] || 0)) + 'px');
     rail.classList.toggle('is-open', open); rail.classList.toggle('is-over', st.over);
+    document.body.classList.toggle('tabs-open', open);                 // the open rail covers the page's right edge: the sticky ad column steps aside while it is open
     clip.classList.toggle('is-scroll', open && st.full > cap);
     if (!open) clip.scrollTop = 0;
     toggle.hidden = !st.over;

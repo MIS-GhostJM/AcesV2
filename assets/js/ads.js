@@ -8,10 +8,11 @@
   // So almost every impression that is counted was on screen when it loaded, instead of rendering 400px below the fold.
   const cfg = (window.ACES_CONFIG || {}).ads || {}, S = cfg.slots || {};
   const G = Object.assign({ viewRatio: .5, dwellMs: 1000, lookaheadPx: 300, requireFocus: true, idleSec: 90, minGapMs: 5000, maxRequestsPerMin: 6, giveUpMs: 8000 }, cfg.gate);
-  const F = Object.assign({ enabled: true, format: 'rectangle', boxMaxPx: 336, reservePx: 280, firstCards: [2, 3], firstCardsMobile: [1, 2], firstAfterPx: 280, firstAfterPxMobile: 200, everyCards: [3, 4], minContentPx: 520, minContentPxMobile: 640, maxPerView: 6, initialView: true }, cfg.feed);
+  const F = Object.assign({ enabled: true, format: 'rectangle', boxMaxPx: 336, reservePx: 280, firstCards: [2, 3], firstCardsMobile: [1, 2], firstAfterPx: 280, firstAfterPxMobile: 200, everyCards: [3, 4], minContentPx: 520, minContentPxMobile: 640, maxPerView: 6, maxPerViewWithRail: 4, initialView: true }, cfg.feed);
   const E = Object.assign({ format: 'rectangle', reservePx: 280 }, cfg.end);
   const L = Object.assign({ format: 'rectangle', reservePx: 280 }, cfg.links);
   const N = Object.assign({ bar: true, barSizes: [[728, 90], [320, 100]], side: true, sidePct: 20, sideMinPageWidth: 720, sideSizes: [[300, 600], [160, 600], [300, 250], [250, 250]] }, cfg.notes);
+  const R = Object.assign({ enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 90 }, cfg.rail);
   const track = (n, p) => window.acesTrack?.(n, p), page = () => document.body.dataset.page || 'scripts';
   const $ = s => document.querySelector(s);
   const pick = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
@@ -57,7 +58,14 @@
     }), { root, threshold: [0, .25, G.viewRatio, .75, 1] });
     ticker = setInterval(tick, 400);
   }
-  const watch = slot => { if (!near) setup(); near.observe(slot); };
+  const watch = slot => {
+    if (!near) setup();
+    near.observe(slot);
+    // A unit inserted inside the look-ahead zone (e.g. the first one, in the opening screen) sets its box aside NOW, in the same frame it is
+    // inserted. Waiting for the observer would paint the cards first and push them down a frame later, which is a layout shift.
+    const m = $('.main-page').getBoundingClientRect(), r = slot.getBoundingClientRect();
+    if (r.top < m.bottom + G.lookaheadPx && r.bottom > m.top - G.lookaheadPx) { near.unobserve(slot); reserve(slot); }
+  };
   const forget = slot => { near?.unobserve(slot); view?.unobserve(slot); inView.delete(slot); };
 
   function reserve(slot) {                   // set the box aside while it is still off screen (or the moment it appears), then wait for it to be seen
@@ -84,7 +92,7 @@
 
   function request(slot, shownPct) {
     if (slot.dataset.requested) return;
-    slot.dataset.requested = '1'; stamps.push(Date.now());
+    slot.dataset.requested = '1'; slot.dataset.reqAt = Date.now(); stamps.push(Date.now());
     const ins = insFor(slot); (slot.querySelector('.ad-box') || slot).append(ins);
     const settle = s => {
       slot.classList.remove('is-empty', 'is-filled'); slot.classList.add(s === 'filled' ? 'is-filled' : 'is-empty');
@@ -125,12 +133,13 @@
     const mobile = innerWidth <= 768;
     const firstPx = mobile ? (F.firstAfterPxMobile ?? F.firstAfterPx) : F.firstAfterPx;   // the FIRST unit sits inside the opening screen (it is the one that gets seen)...
     const nextPx = mobile ? (F.minContentPxMobile ?? F.minContentPx) : F.minContentPx;     // ...later ones are about one screen of scripts apart
+    const cap = rails.scripts && !rails.scripts.dead && F.maxPerViewWithRail ? Math.min(F.maxPerView || 99, F.maxPerViewWithRail) : F.maxPerView;   // a rail already gives this screen a permanent unit
     let since = 0, height = 0, goal = pick(mobile ? (F.firstCardsMobile ?? F.firstCards) : F.firstCards), placed = 0;
     subs.forEach((sub, si) => {
       const cards = [...sub.querySelectorAll(':scope > .card-module')];
       cards.forEach((card, ci) => {
         since++; height += card.offsetHeight;
-        if ((F.maxPerView && placed >= F.maxPerView) || since < goal || height < (placed ? nextPx : firstPx)) return;
+        if ((cap && placed >= cap) || since < goal || height < (placed ? nextPx : firstPx)) return;
         const lastCard = ci === cards.length - 1;
         if (lastCard && si === subs.length - 1) return;              // nothing follows: the end-of-page unit covers it
         const el = make('ad-feed', 'feed', id, { fmt: F.format, reserve: F.reservePx, boxMax: F.boxMaxPx });
@@ -143,7 +152,64 @@
   function viewChanged() {                                           // after the clicked category is on screen
     const t = activeTab();
     if (t === feed.tab) return;                                      // same category again: no new request
-    feed.tab = t; planFeed();
+    feed.tab = t; planFeed(); renewRail('scripts');
+  }
+
+
+  // ---- Sticky rail (desktop): ONE fixed-size unit in its own column that stays in view while the agent works through scripts / the checklist ----
+  // Why a column and not position:fixed: Google's sticky-ad conditions (vertical sticky must never overlap or underlap content, stay clear of
+  // navigation and scrollbars, keep its label visible) are met by construction: the unit sits in a grid column of the content, `position:sticky`
+  // only keeps it inside that column while the page scrolls, and it ends where the content ends.
+  // Lifecycle: mounted synchronously (before the first paint of the page, so nothing reflows), size chosen ONCE from the free height, requested
+  // when seen (same gate as every other unit), renewed only after a user action (new category / checklist) and at most every renewMinSec.
+  const RAIL = { scripts: { canvas: '.script-canvas', bar: '.script-nav-container' }, checklist: { canvas: '.checklist-canvas', bar: '.check-list-nav-container' } };
+  const rails = {};
+  const RAIL_CHROME = 44;                   // label + padding + border around a fixed-size unit, in px
+  const railId = () => S.rail || S.feed || S.banner;
+  function railSize(bar) {
+    const free = $('.main-page').clientHeight - bar.offsetHeight - R.topGapPx * 2 - RAIL_CHROME;
+    return (R.sizes || []).find(s => s[1] <= free) || null;
+  }
+  function mountRail(page) {
+    const id = railId(), spec = RAIL[page];
+    if (!R.enabled || !id || !spec || rails[page] || !(R.pages || []).includes(page) || window.ACES_ADS_BLOCKED || innerWidth < R.minViewportW) return;
+    const canvas = $(spec.canvas), bar = $(spec.bar);
+    if (!canvas || !bar || !canvas.firstElementChild) return;
+    const size = railSize(bar); if (!size) return;
+    const r = rails[page] = { page, canvas, bar, size, id, el: null, renewed: false, dead: false };
+    canvas.style.setProperty('--rail-col', size[0] + 14 + 'px');
+    canvas.style.setProperty('--rail-gap', R.gapPx + 'px');
+    const top = () => canvas.style.setProperty('--rail-top', Math.round(bar.getBoundingClientRect().height) + R.topGapPx + 'px');
+    top(); new ResizeObserver(top).observe(bar);
+    const mq = matchMedia(`(min-width:${R.minViewportW}px)`);        // a window dragged narrower gives the column back (the box is hidden, never swapped)
+    const sync = () => canvas.classList.toggle('has-rail', mq.matches && !r.dead);
+    mq.addEventListener('change', sync);
+    r.sync = sync;
+    attachRail(r, make('ad-rail', 'rail', id, { size }));
+    track('ads.rail.mounted', { page, value: size[1] });
+  }
+  function attachRail(r, el) {
+    r.el = el; r.canvas.append(el); r.sync();
+    if (!near) setup();
+    reserve(el);                                                     // set the box aside this frame; AdSense is asked only once it has been seen (gate)
+    el.addEventListener('ad:status', e => {
+      if (e.detail === 'filled') el.classList.remove('is-quiet');
+      else if (r.renewed) el.classList.add('is-quiet');              // a later request with no fill: keep the column, hide the box, nothing reflows under the agent
+      else unmountRail(r);                                           // the first request found no ad (or it is blocked): give the column back, once, early
+    });
+    requestAnimationFrame(() => { if (el.isConnected && !el.offsetHeight && !r.renewed) unmountRail(r); });   // a blocker's cosmetic filter hid the box
+  }
+  function unmountRail(r) {
+    r.dead = true; if (r.el) { forget(r.el); r.el.remove(); }
+    r.canvas.classList.remove('has-rail'); track('ads.rail.unmounted', { page: r.page });
+  }
+  function renewRail(page) {
+    const r = rails[page]; if (!r || r.dead || !r.el) return;
+    const at = +r.el.dataset.reqAt || 0;
+    if (!at || Date.now() - at < R.renewMinSec * 1000) return;       // not requested yet, or asked recently: leave the current unit alone
+    forget(r.el);
+    const fresh = make('ad-rail', 'rail', r.id, { size: r.size });
+    r.el.replaceWith(fresh); r.renewed = true; attachRail(r, fresh);
   }
 
   // ---- Freeflow notes: strip above the text area + a column at 20% width on its right (high-demand sizes only) ----
@@ -178,10 +244,13 @@
     }
   }
 
+  let lastList = null;
   function showFor() {
     const p = page();
     document.querySelectorAll('.ad-end').forEach(s => { s.hidden = !(cfg.endPages || []).includes(p); });
+    if (p === 'scripts') requestAnimationFrame(() => mountRail('scripts'));   // first visit after a restore that opened another page
     if (p === 'links') linksFeed();
+    if (p === 'checklist') requestAnimationFrame(() => { mountRail('checklist'); lastList = $('.listnav-btn.active')?.id || null; });
     if (p === 'notes') requestAnimationFrame(notesAds);
   }
 
@@ -196,7 +265,12 @@
         requestAnimationFrame(() => requestAnimationFrame(viewChanged));
       });
       document.getElementById('channel-selection')?.addEventListener('change', () => requestAnimationFrame(planFeed));   // filter swaps the visible cards
+      $('.check-list-nav-container')?.addEventListener('click', e => {   // a different checklist = new content = a user-requested renewal of the rail
+        if (!e.target.closest('button')) return;
+        requestAnimationFrame(() => { const a = $('.listnav-btn.active')?.id || null; if (a !== lastList) { lastList = a; renewRail('checklist'); } });
+      });
       feed.tab = activeTab();
+      if (page() === 'scripts') mountRail('scripts');                  // synchronously, so the column exists before the cards are first painted
       if (F.initialView) requestAnimationFrame(planFeed);
     }
   };

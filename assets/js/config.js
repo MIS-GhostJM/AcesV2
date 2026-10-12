@@ -20,10 +20,12 @@ window.ACES_CONFIG = {
     client: 'ca-pub-6978764838614552',
     // Paste real ad-unit IDs (AdSense > Ads > By ad unit). An empty ID keeps that placement switched off.
     //   end / links / banner : as before.      feed      : in-feed units between script cards (falls back to `banner`).
+    //   rail                 : the sticky desktop column (Scripts + Checklist). Falls back to `feed`, then `banner`. Create a dedicated display unit for it
+    //                          (AdSense > Ads > By ad unit) so its earnings show up on their own line in the reports.
     //   notesBar             : strip above the Freeflow text area (falls back to `banner`).
     //   notesSide            : the 20% column beside the Freeflow text area. Pre-filled with your retired rail unit (6965605774); create a fresh display unit
     //                          for it in AdSense if that one was a fixed size, because the column serves 300x600 / 160x600 / 300x250 / 250x250. Empty = column off.
-    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', feed: '', notesBar: '', notesSide: '6965605774' },
+    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', feed: '', notesBar: '', notesSide: '6965605774', rail: '' },
     endPages: ['scripts', 'checklist'],
 
     // WHEN a unit may load (the RPM part). A box is set aside while it is still off screen, so nothing moves under the agent's pointer, and
@@ -55,8 +57,15 @@ window.ACES_CONFIG = {
       minContentPx: 520,         // ...and never before this much script content sits above them (about one screen of scripts per ad)
       minContentPxMobile: 640,   // same rule on screens up to 768px wide
       maxPerView: 6,             // hard cap per category view (0 = no cap)
+      maxPerViewWithRail: 4,     // ...and this cap instead while the sticky rail is on that page (the screen already has a permanent unit)
       initialView: true          // also fill the first category shown on page load
     },
+    // Sticky desktop rail: one fixed-size unit in its own column that stays in view while the agent works. Policy conditions are met by layout:
+    // it never overlaps content, keeps its label, sits clear of the scrollbar and of other units, and ends where the content ends.
+    // size = the first of `sizes` that fits the free height (decided once, never swapped after the request). Below `minViewportW` there is no column.
+    // The rail is requested only after it has been seen (gate above) and renewed only after a user action (another category / checklist), at most
+    // every `renewMinSec`. Set enabled:false to switch it off. pages: where it appears (Errand-Notes never gets ads: customer data on screen).
+    rail: { enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 90 },
     end: { format: 'rectangle', reservePx: 280 },                    // one unit after the last card
     links: { format: 'rectangle', reservePx: 280 },                  // bottom strip of the Links tab
 
