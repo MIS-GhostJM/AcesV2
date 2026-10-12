@@ -2,17 +2,21 @@
   'use strict';
   // AdSense placement tuned for viewable, higher-value impressions (policy-safe: no refresh, no overlay, every unit labelled).
   //
+  // Scripts page: ONE unit, the sticky right-hand rail. There are no horizontal (in-feed / end-of-page) units between or after the script cards.
+  // The rail asks for a NEW ad when the agent switches to a different category (a user-requested refresh, the only kind AdSense allows), but only if
+  // the ad on screen was rendered more than `rail.renewMinSec` ago, and never on a timer. The old ad stays until the new one has arrived. A switch
+  // while an earlier request is still unanswered sends nothing (it is dropped, not queued); only a "no fill" answer lets the next switch ask again.
+  //
   // Life of a slot:  planned (zero size)  ->  reserved (blank labelled box, set aside while it is still off screen, so nothing moves later)
   //                  ->  requested (only while >= viewRatio of the box is on screen for dwellMs, the window is focused and the agent is active)
   //                  ->  filled (box keeps its reserved height, so nothing moves when the creative arrives) or empty (box disappears).
   // So almost every impression that is counted was on screen when it loaded, instead of rendering 400px below the fold.
   const cfg = (window.ACES_CONFIG || {}).ads || {}, S = cfg.slots || {};
-  const G = Object.assign({ viewRatio: .5, dwellMs: 1000, lookaheadPx: 300, requireFocus: true, idleSec: 90, minGapMs: 5000, maxRequestsPerMin: 6, giveUpMs: 8000 }, cfg.gate);
-  const F = Object.assign({ enabled: true, format: 'rectangle', boxMaxPx: 336, reservePx: 280, firstCards: [2, 3], firstCardsMobile: [1, 2], firstAfterPx: 280, firstAfterPxMobile: 200, everyCards: [3, 4], minContentPx: 520, minContentPxMobile: 640, maxPerView: 6, maxPerViewWithRail: 4, initialView: true }, cfg.feed);
-  const E = Object.assign({ format: 'rectangle', reservePx: 280 }, cfg.end);
-  const L = Object.assign({ format: 'rectangle', reservePx: 280 }, cfg.links);
+  const G = Object.assign({ viewRatio: .5, dwellMs: 1000, lookaheadPx: 300, requireFocus: true, idleSec: 90, maxRequestsPerMin: 6, giveUpMs: 8000 }, cfg.gate);
+  const E = Object.assign({ format: 'rectangle', reservePx: 280, boxMaxPx: 336 }, cfg.end);
+  const L = Object.assign({ format: 'rectangle', reservePx: 280, boxMaxPx: 336 }, cfg.links);
   const N = Object.assign({ bar: true, barSizes: [[728, 90], [320, 100]], side: true, sidePct: 20, sideMinPageWidth: 720, sideSizes: [[300, 600], [160, 600], [300, 250], [250, 250]] }, cfg.notes);
-  const R = Object.assign({ enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 90 }, cfg.rail);
+  const R = Object.assign({ enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 60 }, cfg.rail);
   const track = (n, p) => window.acesTrack?.(n, p), page = () => document.body.dataset.page || 'scripts';
   const $ = s => document.querySelector(s);
   const pick = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
@@ -43,7 +47,7 @@
   // ---- request gates ----
   const stamps = [];
   const rateOk = () => { const now = Date.now(); while (stamps.length && now - stamps[0] > 60000) stamps.shift(); return stamps.length < G.maxRequestsPerMin; };
-  let lastInput = Date.now(), lastFeedAt = 0;
+  let lastInput = Date.now();
   ['pointerdown', 'pointermove', 'keydown', 'scroll', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
   // visible tab, focused window (agents work split-screen: an unfocused tool is not being looked at) and recent activity
   const engaged = () => document.visibilityState === 'visible' && (!G.requireFocus || document.hasFocus()) && Date.now() - lastInput < G.idleSec * 1000;
@@ -74,15 +78,12 @@
     slot.dispatchEvent(new CustomEvent('ad:reserved'));
     view.observe(slot);
   }
-  function tick() {                          // one request per tick at most: units load one after another, never in a burst
+  function tick() {                          // one request per tick at most, never a burst
     if (!inView.size || !engaged() || !rateOk()) return;
     const now = Date.now();
     for (const [slot, since] of inView) {
       if (!slot.isConnected) { inView.delete(slot); continue; }
       if (now - since < G.dwellMs) continue;
-      const feedSlot = slot.classList.contains('ad-feed');
-      if (feedSlot && now - lastFeedAt < G.minGapMs) continue;
-      if (feedSlot) lastFeedAt = now;
       const r = slot.getBoundingClientRect(), root = $('.main-page').getBoundingClientRect();
       const shown = Math.max(0, Math.min(r.bottom, root.bottom) - Math.max(r.top, root.top)) / (r.height || 1);
       forget(slot); request(slot, Math.round(shown * 100));
@@ -117,42 +118,16 @@
     const pg = document.getElementById('links-page');
     if (linksDone || !S.links || !pg) return;
     linksDone = true;
-    const el = make('ad-links', 'links', S.links, { fmt: L.format, reserve: L.reservePx, boxMax: F.boxMaxPx }); pg.append(el); watch(el);
+    const el = make('ad-links', 'links', S.links, { fmt: L.format, reserve: L.reservePx, boxMax: L.boxMaxPx }); pg.append(el); watch(el);
   }
 
-  // ---- Scripts: in-feed rectangles between cards, a fresh set for every category the agent opens ----
-  const feed = { tab: null };
+  // ---- Scripts: the rail is the only unit. A different category = a user-requested refresh of the rail ----
   const activeTab = () => $('.script-nav-container .nav-btn.active')?.dataset.tab || null;
-  function clearFeed() { document.querySelectorAll('.ad-feed').forEach(el => { forget(el); el.remove(); }); }
-  function planFeed() {
-    clearFeed();
-    const id = S.feed || S.banner;
-    if (!F.enabled || !id || page() !== 'scripts' || document.body.classList.contains('search-active')) return;
-    const mod = $('.script-module.active'); if (!mod) return;
-    const subs = [...mod.querySelectorAll(':scope > .script-card-sub.active')];
-    const mobile = innerWidth <= 768;
-    const firstPx = mobile ? (F.firstAfterPxMobile ?? F.firstAfterPx) : F.firstAfterPx;   // the FIRST unit sits inside the opening screen (it is the one that gets seen)...
-    const nextPx = mobile ? (F.minContentPxMobile ?? F.minContentPx) : F.minContentPx;     // ...later ones are about one screen of scripts apart
-    const cap = rails.scripts && !rails.scripts.dead && F.maxPerViewWithRail ? Math.min(F.maxPerView || 99, F.maxPerViewWithRail) : F.maxPerView;   // a rail already gives this screen a permanent unit
-    let since = 0, height = 0, goal = pick(mobile ? (F.firstCardsMobile ?? F.firstCards) : F.firstCards), placed = 0;
-    subs.forEach((sub, si) => {
-      const cards = [...sub.querySelectorAll(':scope > .card-module')];
-      cards.forEach((card, ci) => {
-        since++; height += card.offsetHeight;
-        if ((cap && placed >= cap) || since < goal || height < (placed ? nextPx : firstPx)) return;
-        const lastCard = ci === cards.length - 1;
-        if (lastCard && si === subs.length - 1) return;              // nothing follows: the end-of-page unit covers it
-        const el = make('ad-feed', 'feed', id, { fmt: F.format, reserve: F.reservePx, boxMax: F.boxMaxPx });
-        (lastCard ? sub : card).after(el);                           // between two cards, or between two script entries
-        watch(el);
-        placed++; since = 0; height = 0; goal = pick(F.everyCards);
-      });
-    });
-  }
-  function viewChanged() {                                           // after the clicked category is on screen
+  let lastTab = null;
+  function viewChanged() {                                           // runs after the clicked category is on screen
     const t = activeTab();
-    if (t === feed.tab) return;                                      // same category again: no new request
-    feed.tab = t; planFeed(); renewRail('scripts');
+    if (t === lastTab) return;                                       // same category clicked again: no new request
+    lastTab = t; renewRail('scripts');
   }
 
 
@@ -165,7 +140,7 @@
   const RAIL = { scripts: { canvas: '.script-canvas', bar: '.script-nav-container' }, checklist: { canvas: '.checklist-canvas', bar: '.check-list-nav-container' } };
   const rails = {};
   const RAIL_CHROME = 44;                   // label + padding + border around a fixed-size unit, in px
-  const railId = () => S.rail || S.feed || S.banner;
+  const railId = () => S.rail || S.banner;
   function railSize(bar) {
     const free = $('.main-page').clientHeight - bar.offsetHeight - R.topGapPx * 2 - RAIL_CHROME;
     return (R.sizes || []).find(s => s[1] <= free) || null;
@@ -176,7 +151,7 @@
     const canvas = $(spec.canvas), bar = $(spec.bar);
     if (!canvas || !bar || !canvas.firstElementChild) return;
     const size = railSize(bar); if (!size) return;
-    const r = rails[page] = { page, canvas, bar, size, id, el: null, renewed: false, dead: false };
+    const r = rails[page] = { page, canvas, bar, size, id, el: null, next: null, shownAt: 0, dead: false };
     canvas.style.setProperty('--rail-col', size[0] + 14 + 'px');
     canvas.style.setProperty('--rail-gap', R.gapPx + 'px');
     const top = () => canvas.style.setProperty('--rail-top', Math.round(bar.getBoundingClientRect().height) + R.topGapPx + 'px');
@@ -188,28 +163,54 @@
     attachRail(r, make('ad-rail', 'rail', id, { size }));
     track('ads.rail.mounted', { page, value: size[1] });
   }
-  function attachRail(r, el) {
+  function attachRail(r, el) {                                       // the FIRST unit of a page (replacements go through stageRail)
     r.el = el; r.canvas.append(el); r.sync();
     if (!near) setup();
     reserve(el);                                                     // set the box aside this frame; AdSense is asked only once it has been seen (gate)
     el.addEventListener('ad:status', e => {
-      if (e.detail === 'filled') el.classList.remove('is-quiet');
-      else if (r.renewed) el.classList.add('is-quiet');              // a later request with no fill: keep the column, hide the box, nothing reflows under the agent
+      if (e.detail === 'filled') r.shownAt = Date.now();             // "rendered" = the moment the creative arrived
       else unmountRail(r);                                           // the first request found no ad (or it is blocked): give the column back, once, early
     });
-    requestAnimationFrame(() => { if (el.isConnected && !el.offsetHeight && !r.renewed) unmountRail(r); });   // a blocker's cosmetic filter hid the box
+    requestAnimationFrame(() => { if (el.isConnected && !el.offsetHeight) unmountRail(r); });   // a blocker's cosmetic filter hid the box
   }
   function unmountRail(r) {
-    r.dead = true; if (r.el) { forget(r.el); r.el.remove(); }
+    r.dead = true; cancelNext(r, 'unmounted');
+    if (r.el) { forget(r.el); r.el.remove(); }
     r.canvas.classList.remove('has-rail'); track('ads.rail.unmounted', { page: r.page });
   }
-  function renewRail(page) {
-    const r = rails[page]; if (!r || r.dead || !r.el) return;
-    const at = +r.el.dataset.reqAt || 0;
-    if (!at || Date.now() - at < R.renewMinSec * 1000) return;       // not requested yet, or asked recently: leave the current unit alone
-    forget(r.el);
+
+  // Renewal = a NEW unit is staged on top of the current one (same grid cell, same size, invisible until AdSense fills it). The current ad stays on
+  // screen the whole time. Only when the new creative has arrived does it replace the old one; if nothing comes back, the old ad simply stays.
+  function cancelNext(r, why) {                                      // used when the rail is taken away (narrow window, blocked): drop a staged unit that has NOT been sent yet
+    const n = r.next; if (!n) return;
+    r.next = null; forget(n); n.remove();
+    track('ads.rail.cancelled', { page: r.page, label: why });
+  }
+  function stageRail(r) {
     const fresh = make('ad-rail', 'rail', r.id, { size: r.size });
-    r.el.replaceWith(fresh); r.renewed = true; attachRail(r, fresh);
+    fresh.classList.add('is-staged'); r.next = fresh;
+    fresh.addEventListener('ad:status', e => {
+      if (r.next !== fresh) return;                                  // cancelled or unmounted in the meantime
+      r.next = null;
+      if (e.detail !== 'filled') {                                   // no fill / blocked: keep the ad that is already there; the NEXT switch may ask again (the old ad is already past the floor)
+        forget(fresh); fresh.remove(); track('ads.rail.renew_unfilled', { page: r.page }); return;
+      }
+      const old = r.el; r.el = fresh; r.shownAt = Date.now();
+      fresh.classList.remove('is-staged');
+      setTimeout(() => { if (old) { forget(old); old.remove(); } }, 400);   // short overlap so the column is never blank while the new creative paints
+    });
+    r.canvas.append(fresh);                                          // after the current unit in the DOM = painted on top of it
+    reserve(fresh);                                                  // AdSense is asked only once it has been seen (gate), like every other unit
+    track('ads.rail.renew', { page: r.page });
+  }
+  function renewRail(page) {                                         // called after a user switched to a DIFFERENT category / checklist
+    const r = rails[page]; if (!r || r.dead || !r.el) return;
+    // A request that has not been answered yet (waiting for its turn, or sent and not filled / unfilled yet) is never cancelled or replaced: the new
+    // switch sends NOTHING. Only an answer frees the slot: "no fill" lets the next switch ask again, "filled" starts the renewMinSec clock.
+    if (r.next || (r.el.dataset.requested && !r.shownAt)) { track('ads.rail.renew_skipped', { page, label: 'pending' }); return; }
+    if (!r.el.dataset.requested) return;                             // first unit not requested yet: it will be, for this very view
+    if (Date.now() - r.shownAt < R.renewMinSec * 1000) { track('ads.rail.renew_skipped', { page, label: 'min_age' }); return; }   // current ad rendered < renewMinSec ago: keep it
+    stageRail(r);
   }
 
   // ---- Freeflow notes: strip above the text area + a column at 20% width on its right (high-demand sizes only) ----
@@ -257,21 +258,19 @@
   window.AcesAds = {
     init() {
       if (!cfg.enabled || window.ACES_CONSENT?.ads === false) return;
-      if (S.end) { const end = make('ad-end', 'end', S.end, { fmt: E.format, reserve: E.reservePx, boxMax: F.boxMaxPx }); $('.main-page').append(end); watch(end); }
+      if (S.end) { const end = make('ad-end', 'end', S.end, { fmt: E.format, reserve: E.reservePx, boxMax: E.boxMaxPx }); $('.main-page').append(end); watch(end); }
       showFor();
       document.addEventListener('aces:page', showFor);
       $('.script-nav-container').addEventListener('click', e => {      // runs after the tab's own handlers, so the new category is already active
         if (!e.target.closest('.nav-btn')) return;
         requestAnimationFrame(() => requestAnimationFrame(viewChanged));
       });
-      document.getElementById('channel-selection')?.addEventListener('change', () => requestAnimationFrame(planFeed));   // filter swaps the visible cards
       $('.check-list-nav-container')?.addEventListener('click', e => {   // a different checklist = new content = a user-requested renewal of the rail
         if (!e.target.closest('button')) return;
         requestAnimationFrame(() => { const a = $('.listnav-btn.active')?.id || null; if (a !== lastList) { lastList = a; renewRail('checklist'); } });
       });
-      feed.tab = activeTab();
+      lastTab = activeTab();
       if (page() === 'scripts') mountRail('scripts');                  // synchronously, so the column exists before the cards are first painted
-      if (F.initialView) requestAnimationFrame(planFeed);
     }
   };
 })();

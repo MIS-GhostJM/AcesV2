@@ -19,14 +19,14 @@ window.ACES_CONFIG = {
     enabled: true,
     client: 'ca-pub-6978764838614552',
     // Paste real ad-unit IDs (AdSense > Ads > By ad unit). An empty ID keeps that placement switched off.
-    //   end / links / banner : as before.      feed      : in-feed units between script cards (falls back to `banner`).
-    //   rail                 : the sticky desktop column (Scripts + Checklist). Falls back to `feed`, then `banner`. Create a dedicated display unit for it
+    //   end / links / banner : as before.      (The Scripts page has no horizontal units any more: no `feed`, and `end` is Checklist-only, see endPages.)
+    //   rail                 : the sticky desktop column (Scripts + Checklist). Falls back to `banner`. Create a dedicated display unit for it
     //                          (AdSense > Ads > By ad unit) so its earnings show up on their own line in the reports.
     //   notesBar             : strip above the Freeflow text area (falls back to `banner`).
     //   notesSide            : the 20% column beside the Freeflow text area. Pre-filled with your retired rail unit (6965605774); create a fresh display unit
     //                          for it in AdSense if that one was a fixed size, because the column serves 300x600 / 160x600 / 300x250 / 250x250. Empty = column off.
-    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', feed: '', notesBar: '', notesSide: '6965605774', rail: '' },
-    endPages: ['scripts', 'checklist'],
+    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', notesBar: '', notesSide: '6965605774', rail: '' },
+    endPages: ['checklist'],                                          // end-of-page unit: Checklist only. The Scripts page keeps just the sticky right rail
 
     // WHEN a unit may load (the RPM part). A box is set aside while it is still off screen, so nothing moves under the agent's pointer, and
     // is requested only while it is really on screen: that is what raises Active View viewability and with it the price advertisers pay.
@@ -36,38 +36,25 @@ window.ACES_CONFIG = {
       lookaheadPx: 300,          // reserve (blank, labelled "Advertisement") the box this far before it scrolls in. It is NOT requested yet
       requireFocus: true,        // never load into a window that is not focused (agents work split-screen: an unfocused tool is not being looked at)
       idleSec: 90,               // ...or after this long without mouse / keys / scroll / touch
-      minGapMs: 5000,            // minimum time between two in-feed requests
       maxRequestsPerMin: 6,      // sliding-window guard on ALL ad requests from this tab
       giveUpMs: 8000             // blocked or unanswered: remove the blank box
     },
 
-    // In-feed ads between script cards. Every click on a DIFFERENT category starts a fresh view: the old units are removed and new ones are planned.
-    // Rectangles (300x250 / 336x280) are the highest-demand display sizes; the box is capped at boxMaxPx wide so AdSense answers with a rectangle
-    // instead of a low-value leaderboard. Spacing follows content height so ads never outweigh the scripts around them.
-    feed: {
-      enabled: true,
-      format: 'rectangle',
-      boxMaxPx: 336,
-      reservePx: 280,            // height set aside for the creative
-      firstCards: [2, 3],        // FIRST unit of a category view: after 2-3 cards...
-      firstCardsMobile: [1, 2],  // ...on phones, whose cards are tall: after the first 1-2
-      firstAfterPx: 280,         // ...but not before this much script content (it must land inside the opening screen: unseen units earn nothing)
-      firstAfterPxMobile: 200,
-      everyCards: [3, 4],        // later units: after every 3 or 4 cards...
-      minContentPx: 520,         // ...and never before this much script content sits above them (about one screen of scripts per ad)
-      minContentPxMobile: 640,   // same rule on screens up to 768px wide
-      maxPerView: 6,             // hard cap per category view (0 = no cap)
-      maxPerViewWithRail: 4,     // ...and this cap instead while the sticky rail is on that page (the screen already has a permanent unit)
-      initialView: true          // also fill the first category shown on page load
-    },
     // Sticky desktop rail: one fixed-size unit in its own column that stays in view while the agent works. Policy conditions are met by layout:
     // it never overlaps content, keeps its label, sits clear of the scrollbar and of other units, and ends where the content ends.
     // size = the first of `sizes` that fits the free height (decided once, never swapped after the request). Below `minViewportW` there is no column.
-    // The rail is requested only after it has been seen (gate above) and renewed only after a user action (another category / checklist), at most
-    // every `renewMinSec`. Set enabled:false to switch it off. pages: where it appears (Errand-Notes never gets ads: customer data on screen).
-    rail: { enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 90 },
-    end: { format: 'rectangle', reservePx: 280 },                    // one unit after the last card
-    links: { format: 'rectangle', reservePx: 280 },                  // bottom strip of the Links tab
+    // The rail is requested only after it has been seen (gate above). RENEWAL RULE (user-requested refresh, no timer):
+    //   1. The agent switches to a DIFFERENT category (Scripts) / checklist. Clicking the open one does nothing.
+    //   2. The ad on screen must have been rendered more than `renewMinSec` ago (60 s), otherwise the switch keeps it.
+    //   3. The old ad stays until the new creative has arrived (the new unit waits invisibly on top of it). No fill = the old ad stays.
+    //   4. While a request is still unanswered (waiting for its turn, or sent and not filled yet) every further switch is DROPPED: nothing is cancelled,
+    //      replaced or queued, so a burst of clicks can never produce a second request. A "no fill" answer frees the slot: the next switch asks again.
+    // AdSense: "not permitted to refresh a page or an element of a page without the user requesting a refresh". It publishes no minimum interval for
+    // user-requested ads, so `renewMinSec` is our own conservative floor. Set enabled:false to switch the rail off.
+    // pages: where it appears (Errand-Notes never gets ads: customer data on screen).
+    rail: { enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 60 },
+    end: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },     // one unit after the last item (Checklist page)
+    links: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },   // bottom strip of the Links tab
 
     // Freeflow notes: a strip between the tools and the text area, plus a column at 20% of the width on its right.
     // Only high-demand standard sizes are used, chosen to FIT (never clipped). 200x200 / 180x150 / 468x60 / 320x50 earn very little, so the column

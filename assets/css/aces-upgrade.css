@@ -312,14 +312,9 @@ textarea, .tab-clip, .legal-links, .archived-table-container, .checklist-canvas 
 ::-webkit-scrollbar-corner { background:transparent; }
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width:thin; scrollbar-color:var(--sb-hover) transparent; } }
 
-/* ===== Round 6: in-feed ads, Links ad strip, Freeflow layout, update toast ===== */
+/* ===== Round 6: Links ad strip, Freeflow layout, update toast (the in-feed units were removed in Round 10) ===== */
 
-/* In-feed units sit between cards (or between script entries, spanning both grid columns). Generous margins keep them away from the
-   click-to-copy cards so a tap meant for a script can never land on an ad. Hidden while searching. */
-.ad-feed { grid-column:1 / -1; flex:none; }
-.ad-feed.is-filled { margin:18px 0; }
 .ad-links.is-filled { margin:8px 16px 16px; }
-.search-active .ad-feed { display:none; }
 
 /* Freeflow notes: tools + (optional) thin ad strip + text area [+ 20% ad column]. The page is scroll-locked; only the textarea scrolls. */
 body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gutter:auto; }
@@ -359,12 +354,11 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 .ad-slot.is-reserved.is-filled { border-style:solid; border-color:rgba(255,255,255,.22); }
 .ad-slot .ad-box { max-width:var(--ad-box-max, none); min-height:var(--ad-reserve, 0px); margin:0 auto; display:flex; align-items:center; justify-content:center; }
 .ad-slot .ad-box ins.adsbygoogle { width:100%; }
-.ad-feed.is-reserved { margin:24px 0; }                                              /* 24px clear of the click-to-copy cards: a tap meant for a script never lands on an ad */
 .ad-links.is-reserved { margin:8px 16px 16px; }
 .ad-ff-bar.is-reserved { --ad-chrome:10px; display:flex; margin:0; padding:3px 16px; border-width:1px 0; border-radius:0; max-height:none; }
 .ad-ff-side.is-reserved { --ad-chrome:44px; margin:0; padding:6px; border-radius:8px; }
 .ad-slot.is-empty { display:none !important; }
-.search-active .ad-feed, .search-active .ad-end { display:none; }
+.search-active .ad-end { display:none; }
 
 /* ===== Round 9: sticky ad column (desktop). The unit lives in its own grid column of the content, so it never overlaps or underlaps anything. ===== */
 .script-canvas.has-rail, .checklist-canvas.has-rail { display:grid; grid-template-columns:minmax(0,1fr) var(--rail-col, 314px); column-gap:var(--rail-gap, 16px); align-items:start; }
@@ -374,7 +368,10 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 .has-rail > .ad-rail.is-reserved { display:flex; flex-direction:column; align-items:center; grid-column:2; grid-row:1; position:sticky; top:var(--rail-top, 64px);
   min-height:calc(var(--ad-reserve, 250px) + var(--ad-chrome, 44px)); margin:0; padding:6px; border-radius:8px; max-height:none; overflow:hidden; }
 .has-rail > .ad-rail ins.adsbygoogle { max-width:100%; }
-.ad-rail.is-quiet, .tabs-open .ad-rail { visibility:hidden; }              /* no fill this time / the open tab rail is covering the page edge */
+.tabs-open .ad-rail { visibility:hidden; }                               /* the open tab rail is covering the page edge */
+/* Round 11: a replacement unit waits on top of the current ad (same grid cell, same size) and shows nothing until AdSense has filled it, so the old ad stays visible meanwhile */
+.ad-rail.is-staged:not(.is-filled) { border-color:transparent; background:transparent; }
+.ad-rail.is-staged:not(.is-filled) .ad-label { visibility:hidden; }
 .search-active .script-canvas.has-rail { display:block; }                 /* search results use the full width */
 .search-active .script-canvas.has-rail > .ad-rail { display:none; }
 .ad-slot.is-reserved { transition:none; }                                  /* a box that opens over 0.5 s pushes the cards below it down frame by frame (many small layout shifts); open it instantly instead */
