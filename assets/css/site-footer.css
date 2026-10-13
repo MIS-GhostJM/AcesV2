@@ -1,0 +1,26 @@
+/* ACES site footer: ONE stylesheet, shared by the Scripts app (index.html) and the tool pages (/FDCalc, /FRprompt).
+   Markup: <footer class="site-footer"> ... see index.html. The footer is a fixed-height row (--foot-h) at the bottom of the page grid
+   (grid-area:foot in the app shell), so it never moves with the content. Under 900px the legal links collapse into a pop-up. */
+:root { --foot-h:36px; }
+.site-footer { grid-area:foot; position:relative; z-index:50; height:var(--foot-h); margin:0; display:flex; align-items:center;
+  background:linear-gradient(135deg,#1a252f,#2c3e50); color:#c9d4de; border-top:2px solid #3498db;
+  font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height:1.6; }
+.site-footer * { font-family:inherit; }                  /* a page-wide `* { font-family }` rule (FareRules) must not change the footer */
+.site-footer a { text-decoration:underline; }
+.footer-bottom { display:flex; flex-wrap:nowrap; justify-content:space-between; align-items:center; gap:12px; width:100%; padding:0 16px; font-size:var(--fs-cap, 12px); }
+.copyright { flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.footer-actions { display:flex; flex:none; flex-wrap:nowrap; align-items:center; gap:6px 16px; width:auto; }
+.footer-actions a, .legal-toggle { display:inline-flex; align-items:center; min-height:32px; color:#dbe6f0; font-size:13px; }
+.legal-toggle { display:none; padding:0 12px; background:transparent; border:1px solid rgba(255,255,255,.55); border-radius:8px; cursor:pointer; }
+.legal-links { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.legal-links a { color:#dbe6f0; padding:4px 0; }
+@media (max-width:900px) {
+  .legal-toggle { display:inline-flex; min-height:32px; }
+  .footer-actions .to-top { min-height:32px; }
+  .legal-links { display:none; position:absolute; right:8px; bottom:calc(100% + 6px); flex-direction:column; flex-basis:auto; gap:0; min-width:210px; padding:6px; background:#1a252f; border:1px solid rgba(255,255,255,.3); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.45); }
+  .legal-links.open { display:flex; }
+  .legal-links a { min-height:44px; display:flex; align-items:center; padding:0 10px; }
+  .footer-actions { justify-content:flex-end; gap:10px; }
+  #footer-meta { display:none; }
+}
+@media (max-width:768px) { :root { --foot-h:40px; } }

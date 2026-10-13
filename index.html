@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="errands-style.css">
     <link rel="stylesheet" href="links-style.css">
     <link rel="stylesheet" href="assets/css/aces-upgrade.css">
+    <link rel="stylesheet" href="assets/css/site-footer.css">
+    <link rel="stylesheet" href="assets/css/ads.css">
     <meta name="description" content="ACES: script, errand-note and checklist assistant for chat and voice agents.">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
     <title>A C E S</title>
@@ -38,7 +40,7 @@
                 </button>
             </div>
             <div class="quick-link">
-                <div class="fd-calculator-link"><a href="https://fdcalc.netlify.app" target="_blank" rel="noopener noreferrer" data-track="header.fdcalc.click" aria-label="FD Calculator (opens in a new tab)" title="FD Calculator">
+                <div class="fd-calculator-link"><a href="/FDCalc" target="_blank" rel="noopener noreferrer" data-track="header.fdcalc.click" aria-label="FD Calculator (opens in a new tab)" title="FD Calculator">
                         <i class="fa-solid fa-calculator"></i>
                         <h3>FD Calculator</h3>
                     </a></div>
@@ -94,6 +96,11 @@
                     <h3>Links</h3>
                     <div class="nav-tooltip">Links</div>
                 </div>
+                <!-- Tool page (own route). Deliberately not a .nav-item: script.js treats every .nav-item as an in-page tab and reads its <button>. -->
+                <a class="nav-ext" href="/FRprompt" target="_blank" rel="noopener noreferrer" data-track="nav.rail.click" data-track-page="frprompt" aria-label="FR Prompt (opens in a new tab)" title="FR Prompt">
+                    <span class="nav-ext-icon"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span>
+                    <h3>FR Prompt</h3>
+                </a>
             </nav>
             <main class="main-page" id="main-content" tabindex="-1">
                 <!--Freeflow Notes-->
@@ -351,6 +358,7 @@
 
 
     <script src="assets/js/config.js"></script>
+    <script src="assets/js/site-footer.js"></script><!-- footer year, Legal pop-up, Back to top (shared with /FDCalc and /FRprompt) -->
     <script src="assets/js/tracker.js"></script>
     <script src="assets/js/ga-bridge.js"></script><!-- forwards tracker events to GA4 (tag is injected by Netlify) -->
     <script src="assets/js/data.js"></script>

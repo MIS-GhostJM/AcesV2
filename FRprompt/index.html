@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="google-adsense-account" content="ca-pub-6978764838614552">
+    <meta name="description" content="GDS Fare Rules AI Prompt Generator: build a ready-to-paste AI prompt from GDS fare rules. Part of ACES - MIS Applications.">
+    <title>GDS Fare Rules AI Prompt Generator</title>
+    <link rel="stylesheet" href="/FRprompt/styles.css">
+    <link rel="stylesheet" href="/assets/css/site-footer.css">
+    <link rel="stylesheet" href="/assets/css/ads.css">
+    <link rel="stylesheet" href="/assets/css/tools-shell.css">
+    <!-- Warm the ad connections early (same as the Scripts app) -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
+    <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin>
+    <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin>
+    <!-- AdSense library, loaded ONCE. The ad unit itself is placed by /assets/js/ads.js (slots and sizes: /assets/js/config.js). onerror: a blocked library means no ad column is reserved -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6978764838614552"
+     crossorigin="anonymous" onerror="window.ACES_ADS_BLOCKED=true"></script>
+</head>
+<body data-page="frprompt" data-ads-auto>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="app-container">
+        <div class="app-body">
+            <main class="main-page" id="main-content" tabindex="-1">
+                <div class="tool-canvas">
+                    <div class="tool-content">
+                    <div class="app-wrapper">
+                      <header>
+                        <h1>GDS Fare Rules AI Prompt Generator</h1>
+                        <p>Automated Prompt Optimization Engine for Airline Ticket Analysis</p>
+                      </header>
+
+                      <div class="main-grid">
+                        <!-- INPUT FORM CARD -->
+                        <div class="card">
+                          <h2>Reservation Details & Fare Rules</h2>
+                          <form id="promptForm" class="form-container">
+                            
+                            <div class="form-group">
+                              <label>Scenario Choice <span class="req">*</span></label>
+                              <div class="radio-container">
+                                <label class="radio-option">
+                                  <input type="radio" name="choice" value="Cancellation" checked> Cancellation
+                                </label>
+                                <label class="radio-option">
+                                  <input type="radio" name="choice" value="Change"> Change / Exchange
+                                </label>
+                              </div>
+                            </div>
+
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label for="travelDate">Travel Date <span class="req">*</span></label>
+                                <input type="date" id="travelDate" required>
+                              </div>
+                              <div class="form-group">
+                                <label for="issuanceDate">Date of Issuance <span class="req">*</span></label>
+                                <input type="date" id="issuanceDate" required>
+                              </div>
+                            </div>
+
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label for="countryInput">Issuance Country (Searchable) <span class="req">*</span></label>
+                                <input type="text" id="countryInput" list="countryList" placeholder="Type to search country..." required oninput="handleCountryChange()">
+                                <datalist id="countryList"></datalist>
+                              </div>
+                              <div class="form-group">
+                                <label for="countryCode">Country Code <span class="req">*</span></label>
+                                <input type="text" id="countryCode" placeholder="Auto-filled" required readonly style="background-color: #e2e8f0;">
+                              </div>
+                            </div>
+
+                            <div class="form-row">
+                              <div class="form-group">
+                                <label for="departureCity">Departure Airport Code <span class="req">*</span></label>
+                                <input type="text" id="departureCity" placeholder="e.g. JFK" required>
+                              </div>
+                              <div class="form-group">
+                                <label for="departureTime">Departure Time <span class="req">*</span></label>
+                                <input type="time" id="departureTime" required>
+                              </div>
+                            </div>
+
+                            <div class="form-row-3">
+                              <div class="form-group">
+                                <label for="pricingStructure">Pricing Structure <span class="req">*</span></label>
+                                <input type="text" id="pricingStructure" placeholder="One (1) Pricing Unit" required>
+                              </div>
+                              <div class="form-group">
+                                <label for="currency">Currency <span class="req">*</span></label>
+                                <select id="currency" required></select>
+                              </div>
+                              <div class="form-group">
+                                <label for="baseFare">Base Fare <span class="req">*</span></label>
+                                <input type="number" id="baseFare" step="0.01" placeholder="0.00" required>
+                              </div>
+                            </div>
+
+                            <div class="form-group fare-rules-group">
+                              <label for="fareRules">GDS Fare Rules Source <span class="req">*</span></label>
+                              <textarea id="fareRules" placeholder="Paste full/whole copy of fare rules from GDS here..." required></textarea>
+                            </div>
+
+                            <button type="submit" class="btn">Generate Optimized Prompt</button>
+                          </form>
+                        </div>
+
+                        <!-- GENERATED OUTPUT CARD -->
+                        <div class="card output-card">
+                          <h2>Optimized AI Prompt Output</h2>
+                          <textarea id="outputPrompt" class="output-area" readonly placeholder="Your structured AI prompt will appear here..."></textarea>
+                          <button id="copyBtn" class="btn btn-secondary" onclick="copyPrompt()">Copy Prompt to Clipboard</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Dynamic Toast Notification Container -->
+                    </div>
+                </div>
+            </main>
+            <footer class="site-footer">
+                <div class="footer-bottom">
+                    <div class="copyright">&copy; <span id="year">2026</span> ACES - MIS Applications. <span id="footer-meta"></span></div>
+                    <div class="footer-actions">
+                        <a href="#main-content" class="to-top">Back to top</a>
+                        <button type="button" class="legal-toggle" aria-expanded="false" aria-controls="legal-links">Legal</button>
+                        <div class="legal-links" id="legal-links">
+                        <a href="/privacy-policy.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="privacy-policy.html">Privacy Policy</a>
+                        <a href="/terms-conditions.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="terms-conditions.html">Terms &amp; Conditions</a>
+                        <a href="/cookie-policy.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="cookie-policy.html">Cookie Policy</a>
+                        <a href="/adsense-disclaimer.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="adsense-disclaimer.html">Disclaimer</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/assets/js/config.js"></script>
+    <script src="/assets/js/site-footer.js"></script>
+    <script src="/assets/js/tracker.js"></script>
+    <script src="/assets/js/ga-bridge.js"></script><!-- forwards tracker events to GA4 (tag is injected by Netlify) -->
+    <script src="/assets/js/ads.js" defer></script>
+    <script src="/FRprompt/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+/* ACES tool pages (/FDCalc, /FRprompt): the same app shell as the Scripts app (index.html), so the shared footer (site-footer.css) and the
+   right-hand ad container (ads.css + assets/js/ads.js) behave exactly as they do there:
+   - the page itself never scrolls; .main-page does (scroll area), the footer is a fixed row under it, the floating ad bar (narrow windows) a row between them
+   - .tool-canvas becomes a two-column grid (content | ad column) when ads.js adds .has-rail
+   Load order: the page's own stylesheet, site-footer.css, ads.css, then this file. */
+
+/* the tool pages are light: the ad label and box borders need dark ink instead of the Scripts app's light-on-dark defaults */
+:root { --ad-ink:#475569; --ad-line:#cbd5e1; --ad-line-dashed:#cbd5e1; --ad-float-bg:rgba(15,23,42,.05); }
+
+html, body { height:100%; max-width:100%; overflow:hidden; }
+.skip-link { position:absolute; left:8px; top:-48px; z-index:500; padding:10px 14px; background:#fff; color:#1c2630; border-radius:8px; font:600 14px/1.2 system-ui, sans-serif; }
+.skip-link:focus { top:8px; }
+
+.app-container { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
+.app-body { flex:1 1 0; min-height:0; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto var(--foot-h); grid-template-areas:"main" "bar" "foot"; }
+.main-page { grid-area:main; min-height:0; min-width:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+.main-page:focus { outline:none; }
+@media (prefers-reduced-motion: no-preference) { .main-page { scroll-behavior:smooth; } }
+
+.tool-canvas { min-height:100%; }
+.tool-canvas.has-rail { padding-right:8px; }
+.tool-content { min-width:0; }
+
+/* /FRprompt fills the screen without scrolling (two cards side by side): the content takes the full height, with or without the ad column */
+body[data-page="frprompt"] .tool-canvas { height:100%; }
+body[data-page="frprompt"] .tool-canvas.has-rail { grid-template-rows:minmax(0,1fr); }
+body[data-page="frprompt"] .tool-content { height:100%; min-height:0; align-self:stretch; }
+@media (max-width:768px) { body[data-page="frprompt"] .tool-canvas, body[data-page="frprompt"] .tool-content { height:auto; } }   /* stacked cards: the page scrolls */

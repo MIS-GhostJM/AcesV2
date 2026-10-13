@@ -21,57 +21,76 @@ window.ACES_CONFIG = {
     // Paste real ad-unit IDs (AdSense > Ads > By ad unit). An empty ID keeps that placement switched off.
     //   end / links / banner : as before.      (The Scripts page has no horizontal units any more: no `feed`, and `end` is Checklist-only, see endPages.)
     //   float                : the floating bar of narrow windows (see `float` below). Falls back to `rail`, then `banner`. A dedicated unit gives it its own report line.
-    //   rail                 : the sticky desktop column (Scripts + Checklist). Falls back to `banner`. Create a dedicated display unit for it
-    //                          (AdSense > Ads > By ad unit) so its earnings show up on their own line in the reports.
-    //   notesBar             : strip above the Freeflow text area (falls back to `banner`).
-    //   notesSide            : the 20% column beside the Freeflow text area. Pre-filled with your retired rail unit (6965605774); create a fresh display unit
-    //                          for it in AdSense if that one was a fixed size, because the column serves 300x600 / 160x600 / 300x250 / 250x250. Empty = column off.
-    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', notesBar: '', notesSide: '6965605774', rail: '', float: '' },
+    //   rail                 : the right-hand skyscraper container (Scripts + Checklist). Falls back to `banner`. Create a dedicated RESPONSIVE display unit for it
+    //                          (AdSense > Ads > By ad unit): the container uses data-ad-format="auto", which only works on a responsive unit, and a dedicated
+    //                          unit shows its earnings on their own line in the reports.
+    //   notesSide            : the same container beside the Free-flow text area (falls back to `rail`, then `banner`). Pre-filled with your retired rail unit
+    //                          (6965605774); if that one was created as a FIXED size, create a responsive unit and paste it here (or empty it to use `rail`).
+    //   tools                : the same container on /FDCalc and /FRprompt (falls back to `rail`, then `banner`). The old FDCalc repo used a fixed 160x600 unit
+    //                          (1292927956): paste it here only if it is a responsive unit.
+    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', notesSide: '6965605774', rail: '', tools: '', float: '' },
     endPages: ['checklist'],                                          // end-of-page unit: Checklist only. The Scripts page keeps just the sticky right rail
 
     // WHEN a unit may load (the RPM part). A box is set aside while it is still off screen, so nothing moves under the agent's pointer, and
     // is requested only while it is really on screen: that is what raises Active View viewability and with it the price advertisers pay.
     gate: {
       viewRatio: 0.5,            // request only while at least this share of the box is on screen...
-      dwellMs: 1000,             // ...for this long
+      dwellMs: 1000,             // ...for this long (units the agent scrolls past: Checklist end, Links)
+      dwellFixedMs: 250,         // ...and for this long for the sticky rail / floating bar, which are on screen the whole time: the first ad of a page loads ~0.75 s sooner
+      tickMs: 200,               // how often the gate looks for a unit that is ready (was 400)
       lookaheadPx: 300,          // reserve (blank, labelled "Advertisement") the box this far before it scrolls in. It is NOT requested yet
-      requireFocus: true,        // never load into a window that is not focused (agents work split-screen: an unfocused tool is not being looked at)
-      idleSec: 90,               // ...or after this long without mouse / keys / scroll / touch
+      requireFocus: true,        // RENEWALS never load into a window that is not focused (agents work split-screen: an unfocused tool is not being looked at)...
+      requireFocusFirst: false,  // ...but the FIRST ad of a page view only needs a visible tab: a visible split-screen window is on screen, so the page-load request is not held back until the agent clicks into it
+      idleSec: 90,               // ...and nothing loads after this long without mouse / keys / scroll / touch
       maxRequestsPerMin: 6,      // sliding-window guard on ALL ad requests from this tab
-      giveUpMs: 8000             // blocked or unanswered: remove the blank box
+      giveUpMs: 12000            // blocked or unanswered: treat as unfilled (was 8 s: slow office networks answered after the box had already been removed)
     },
 
-    // Sticky desktop rail: one fixed-size unit in its own column that stays in view while the agent works. Policy conditions are met by layout:
-    // it never overlaps content, keeps its label, sits clear of the scrollbar and of other units, and ends where the content ends.
-    // size = the first of `sizes` that fits the free height (decided once, never swapped after the request). Below `minViewportW` there is no column.
+    // WHICH user actions may ask for a new ad (AdSense: only a refresh the USER requests). Each is an explicit request that replaces the content beside the ad,
+    // so a fresh ad is fair. Every one still goes through the same gates: seen >= 50 %, focused window, active agent, `rail.renewMinSec`, 6 requests / min / tab.
+    //   Always on (not switchable): a different Scripts category, a different checklist, a different section (Scripts / Checklist / Links / Free-flow).
+    //   channel   : the All / Chat / Voice filter is changed (the list of scripts is replaced).
+    //   search    : the search is cleared and the full list comes back (the ad was hidden while the results were shown).
+    //   template  : Free-flow, "Insert template" (replaces the note).                    GRAY AREA: off until you decide, see UPGRADE-NOTES Round 15.
+    //   generate  : /FRprompt, "Generate Optimized Prompt" (new output on screen).         GRAY AREA: off until you decide.
+    // NOT possible by design: timers, typing, copy clicks, tab focus / visibility changes, scrolling, window resize (none of them is a user asking for new content).
+    actions: { channel: true, search: true, template: false, generate: false },
+
+    // Empty container recovery ("aggressive fill" that stays inside policy). A first request that gets no ad hands the column back, but the container is NOT
+    // given up for the rest of the visit: the next explicit user action above (never a timer) puts it back and asks again, at most `max` times per page view,
+    // at least `minGapSec` apart, and only while the global per-minute cap allows. Set max:0 for the old behaviour (one try, then gone).
+    retryEmpty: { max: 3, minGapSec: 15 },
+
+    // Container fit: when a creative arrives, the container shrinks / grows to exactly the creative (no empty frame around a 300x250 inside a 600 px column).
+    // The rail is a separate column, so nothing beside it moves. Checklist end unit too (nothing below it). Links keeps its reserved box (its tiles re-centre).
+    fit: true,
+
+    // Right-hand skyscraper container: ONE unit in its own column. Its HEIGHT is the free space of the page: from just under the category bar down to the
+    // footer (minus `topGapPx` / `bottomGapPx`), re-measured on every resize. It never scrolls (overflow hidden) and holds a responsive unit with
+    // data-ad-format="auto", so AdSense picks the best-paying size that fits the column (`widthPx` wide). The box keeps the whole height whatever size
+    // arrives (the creative sits inside it), so nothing moves when it loads. On Scripts and Checklist it sticks while the cards scroll; Free-flow and the
+    // tool pages do not scroll, so it simply spans the page. Policy conditions are met by layout: it never overlaps content, keeps its label, sits clear of
+    // the scrollbar and of other units, and ends where the content ends. Below `minViewportW`, or with less than `minHeightPx` (+44 px of frame) free, there is no column.
     // The rail is requested only after it has been seen (gate above). RENEWAL RULE (user-requested refresh, no timer):
     //   1. The agent switches to a DIFFERENT category (Scripts) / checklist. Clicking the open one does nothing.
-    //   2. The ad on screen must have been rendered more than `renewMinSec` ago (60 s), otherwise the switch keeps it.
+    //   2. The ad on screen must have been rendered more than `renewMinSec` ago (30 s), otherwise the switch keeps it. AdSense publishes NO minimum for user-requested
+    //      ads; 30 s is the lowest interval Google publishes anywhere (Ad Manager, time-based refresh), so it is the floor used here. Do not go below it.
     //   3. The old ad stays until the new creative has arrived (the new unit waits invisibly on top of it). No fill = the old ad stays.
     //   4. While a request is still unanswered (waiting for its turn, or sent and not filled yet) every further switch is DROPPED: nothing is cancelled,
     //      replaced or queued, so a burst of clicks can never produce a second request. A "no fill" answer frees the slot: the next switch asks again.
     // AdSense: "not permitted to refresh a page or an element of a page without the user requesting a refresh". It publishes no minimum interval for
     // user-requested ads, so `renewMinSec` is our own conservative floor. Set enabled:false to switch the rail off.
-    // pages: where it appears (Errand-Notes never gets ads: customer data on screen).
-    rail: { enabled: true, pages: ['scripts', 'checklist'], minViewportW: 1280, sizes: [[300, 600], [300, 250]], topGapPx: 12, gapPx: 16, renewMinSec: 60 },
+    // pages: where it appears (Errand-Notes never gets ads: customer data on screen). Free-flow and the tool pages never renew it (typing / calculating is not a refresh request).
+    rail: { enabled: true, pages: ['scripts', 'checklist', 'notes', 'fdcalc', 'frprompt'], minViewportW: 1280, widthPx: 300, minHeightPx: 250, topGapPx: 12, bottomGapPx: 12, gapPx: 16, renewMinSec: 30 },
     // Floating bar for windows narrower than rail.minViewportW (the rail does not fit there): ONE unit docked between the content and the footer,
     // always visible, never moving with the scroll. It is a row of the app grid, so the content area ends above it: the last script card stops above
     // the bar and nothing is covered. Same request / renewal rules as the rail (renewMinSec above). Errand-Notes stays ad-free (customer data on screen):
-    // add 'errands' to `pages` only after checking that against the client's policy. Links and Freeflow keep their own units; set `ads.notes.bar:false`
-    // or `slots.links:''` if you want only the floating bar on those two.
+    // add 'errands' to `pages` only after checking that against the client's policy. Links keeps its own unit; set `slots.links:''` if you want only the floating bar there.
+    // Free-flow ('notes') is listed again (Round 15): below `rail.minViewportW` it gets the bar, so it is no longer ad-free in narrow windows.
     //   sizes: tried in order, first one that fits the content width.      minViewportH: below this window height no bar (it would eat the screen).
-    float: { enabled: true, pages: ['scripts', 'checklist', 'links', 'notes'], sizes: [[728, 90], [320, 100]], minViewportH: 560 },
+    float: { enabled: true, pages: ['scripts', 'checklist', 'links', 'notes', 'fdcalc', 'frprompt'], sizes: [[728, 90], [320, 100]], minViewportH: 560 },
     end: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },     // one unit after the last item (Checklist page)
     links: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },   // bottom strip of the Links tab
-
-    // Freeflow notes: a strip between the tools and the text area, plus a column at 20% of the width on its right.
-    // Only high-demand standard sizes are used, chosen to FIT (never clipped). 200x200 / 180x150 / 468x60 / 320x50 earn very little, so the column
-    // simply stays closed on screens too small for a proper size (it opens on full-HD desktops).
-    notes: {
-      bar: true,  barSizes: [[728, 90], [320, 100]],                                          // first one that fits the width wins
-      side: true, sidePct: 20, sideMinPageWidth: 720,                                        // phones: no side column
-      sideSizes: [[300, 600], [160, 600], [300, 250], [250, 250]]                            // largest that fits wins
-    }
   },
 
   // Version check + safe refresh. Every `checkEveryMin` minutes the app compares the live files with the ones it loaded.

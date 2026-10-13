@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="google-adsense-account" content="ca-pub-6978764838614552">
+    <meta name="description" content="Fare Difference Calculator: fare difference, airline penalty, service fee and tax breakdown for a flight change. Part of ACES - MIS Applications.">
+    <title>Fare Difference Calculator</title>
+    <link rel="stylesheet" href="/FDCalc/styles.css">
+    <link rel="stylesheet" href="/assets/css/site-footer.css">
+    <link rel="stylesheet" href="/assets/css/ads.css">
+    <link rel="stylesheet" href="/assets/css/tools-shell.css">
+    <!-- Warm the ad connections early (same as the Scripts app) -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
+    <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin>
+    <link rel="preconnect" href="https://tpc.googlesyndication.com" crossorigin>
+    <!-- AdSense library, loaded ONCE. The ad unit itself is placed by /assets/js/ads.js (slots and sizes: /assets/js/config.js). onerror: a blocked library means no ad column is reserved -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6978764838614552"
+     crossorigin="anonymous" onerror="window.ACES_ADS_BLOCKED=true"></script>
+</head>
+<body data-page="fdcalc" data-ads-auto>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="app-container">
+        <div class="app-body">
+            <main class="main-page" id="main-content" tabindex="-1">
+                <div class="tool-canvas">
+                    <div class="tool-content">
+            <div class="container">
+                <div class="main-content">
+                    <h1>Fare Difference Calculator</h1>
+                
+                    <div class="controls">
+                        <button class="clear-fields-button" id="clear-fields-button">Clear Fields</button>
+                        <div class="input-group">
+                            <label for="gdscurrency">GDS Currency Code:</label>
+                            <input type="text" id="gdscurrency" placeholder="" maxlength="3" pattern="[A-Za-z]{1,3}" required>
+                        </div>
+                         <div class="input-group">
+                            <label for="flexibilitySelect">Is flexible ticket product used?:</label>
+                            <select id="flexibilitySelect">
+                                <option value="Select">Select</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="controls">
+                       <div class="input-group" id="airlinePenaltyRow" style="display: none;">
+                            <label for="airlinePenalty">Airline Penalty:</label>
+                            <input type="number" id="airlinePenalty" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                        <div class="input-group" id="serviceFeeRow" style="display: none;">
+                            <label for="serviceFee">Service Fee:</label>
+                            <input type="number" id="serviceFee" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                        <div class="input-group" id="serviceFeeCurrencyRow" style="display: none;">
+                            <label for="serviceFee">Service Fee Currency:</label>
+                            <input type="text" id="serviceFeeCurrency" placeholder="" maxlength="3" pattern="[A-Za-z]{1,3}" required>
+                        </div>
+                         <div class="input-group">
+                            <label for="baseOldFare">Old Base Fare:</label>
+                            <input type="number" id="baseOldFare" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                        <div class="input-group">
+                            <label for="baseNewFare">New Base Fare:</label>
+                            <input type="number" id="baseNewFare" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tax Type</th>
+                                    <th>Old Tax</th>
+                                    <th>New Tax</th>
+                                    <th>Difference</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="taxTableBody">
+                                <tr id="taxRow1">
+                                    <td><input type="text" id="taxType1" maxlength="2" class="tax-type"></td>
+                                    <td><input type="number" id="oldFare1" placeholder="0.00" min="0" step="0.01"></td>
+                                    <td><input type="number" id="newFare1" placeholder="0.00" min="0" step="0.01"></td>
+                                    <td id="taxDiff1" class="currency">0.00</td>
+                                    <td><button class="remove-tax-button" onclick="removeTaxRow(1)">Remove</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="add-tax-button" id="addTaxButton" onclick="addTaxRow()">Add Tax Row</button>
+                    <div id="maxTaxAlert" class="alert" style="display: none;">
+                        Maximum number of tax rows reached.
+                    </div>
+                </div>
+                <div class="side-panel">
+                    <div class="notes">
+                        <h3>Notes</h3>
+                        <ul>
+                            <li>All penalties and difference must be charged following the Quouted curreny in your GDS tool.</li>
+                            <li>All calculations are per traveller.</li>
+                        </ul>
+                    </div>
+                    <div class="summary">
+                        <div class="summary-header">
+                            <h2>Summary</h2>
+                            <button class="copy-button" id="copyButton" onclick="handleCopy()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="summary-item" style="display: none;">
+                            <span>Base Fare Difference:</span>
+                            <span class="currency" id="totalBaseFare">0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Base Fare Difference:</span>
+                            <span class="currency" id="totalBaseFareshow">0.00</span>
+                        </div>
+                        <div class="summary-item" id="Penaltysummary" style="display: none;">
+                            <span>Airline Penalty:</span>
+                            <span class="currency" id="Penaltysummary">0.00</span>
+                        </div>
+                        <div class="tax-breakdown">
+                            <h3>Tax Breakdown</h3>
+                            <div class="tax-list"></div>
+                        </div>
+                        <div class="summary-item">
+                            <span>Overall Tax Difference:</span>
+                            <span class="currency" id="taxDifference">0.00</span>
+                        </div>
+                        <div class="summary-item total">
+                            <span>Total Fare Difference:</span>
+                            <span class="currency" id="totalFareDiff">0.00</span>
+                        </div>
+                        <div class="summary-item total" id="Servicefeesummary" style="display: none;">
+                            <span>Service Fee:</span>
+                            <span class="currency" id="Servicefeesummary">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                    </div>
+                </div>
+            </main>
+            <footer class="site-footer">
+                <div class="footer-bottom">
+                    <div class="copyright">&copy; <span id="year">2026</span> ACES - MIS Applications. <span id="footer-meta"></span></div>
+                    <div class="footer-actions">
+                        <a href="#main-content" class="to-top">Back to top</a>
+                        <button type="button" class="legal-toggle" aria-expanded="false" aria-controls="legal-links">Legal</button>
+                        <div class="legal-links" id="legal-links">
+                        <a href="/privacy-policy.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="privacy-policy.html">Privacy Policy</a>
+                        <a href="/terms-conditions.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="terms-conditions.html">Terms &amp; Conditions</a>
+                        <a href="/cookie-policy.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="cookie-policy.html">Cookie Policy</a>
+                        <a href="/adsense-disclaimer.html" target="_blank" rel="noopener" data-track="footer.legal.click" data-track-label="adsense-disclaimer.html">Disclaimer</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script src="/assets/js/config.js"></script>
+    <script src="/assets/js/site-footer.js"></script>
+    <script src="/assets/js/tracker.js"></script>
+    <script src="/assets/js/ga-bridge.js"></script><!-- forwards tracker events to GA4 (tag is injected by Netlify) -->
+    <script src="/assets/js/ads.js" defer></script>
+    <script src="/FDCalc/script.js"></script>
+</body>
+</html>

@@ -65,10 +65,6 @@
 
 /* Footer: normal flow at the end of the scroll area (was position:fixed) */
 .main-page { padding-bottom:0; }
-.site-footer { margin-top:32px; background:linear-gradient(135deg,#1a252f,#2c3e50); color:#c9d4de; border-top:2px solid #3498db; }
-.footer-bottom { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 16px; padding:12px 20px; font-size:var(--fs-cap); }
-.legal-links { display:flex; flex-wrap:wrap; gap:4px 16px; }
-.legal-links a { color:#dbe6f0; padding:4px 0; }
 
 /* ===== Shell: one scroller, dynamic viewport, never wider than the screen (fixes the white strip on the right) ===== */
 html, body { max-width:100%; overflow-x:clip; }
@@ -122,6 +118,11 @@ body { overflow-y:hidden; }
 .side-panel .nav-item.active { background:rgba(255,183,102,.14); border-left-color:#ffb766; color:#fff; }
 .side-panel .nav-item.active h3 { font-weight:700; }
 .nav-tooltip { display:none; }
+/* FR Prompt: a link to its own page, styled like the page tabs above it but set apart by a divider (it leaves the app, it does not switch a page) */
+.side-panel .nav-ext { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:68px; margin-top:6px; padding:6px 4px; border-left:4px solid transparent; border-top:1px solid rgba(255,255,255,.14); color:#dbe6f0; text-decoration:none; cursor:pointer; }
+.side-panel .nav-ext .nav-ext-icon { min-width:44px; min-height:32px; display:flex; align-items:center; justify-content:center; font-size:20px; }
+.side-panel .nav-ext h3 { font-size:12px; font-weight:500; line-height:1.2; color:inherit; text-align:center; overflow-wrap:anywhere; }
+.side-panel .nav-ext:hover { background:rgba(255,255,255,.08); border-left-color:rgba(255,183,102,.5); color:#fff; }
 
 /* ===== Script tabs ===== */
 /* Script tabs: one small chip per tab, coloured by its group, in a two-row rail. When the chips need more rows the rail grows downward
@@ -181,12 +182,6 @@ body { overflow-y:hidden; }
 .script-title-chat h4, .script-title-voice h4 { font-size:var(--fs-title); }
 .script-title-chat p, .script-title-voice p { font-size:13px; color:#fff; }
 
-/* ===== Footer ===== */
-.footer-bottom { align-items:center; }
-.copyright { flex:1 1 260px; }
-.footer-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; }
-.footer-actions a, .legal-toggle { display:inline-flex; align-items:center; min-height:32px; color:#dbe6f0; font-size:13px; }
-.legal-toggle { display:none; padding:0 12px; background:transparent; border:1px solid rgba(255,255,255,.55); border-radius:8px; cursor:pointer; }
 
 /* ===== Tablet / phone ===== */
 @media (max-width:900px) { .twin-form-box { grid-template-columns:1fr; } }
@@ -198,6 +193,13 @@ body { overflow-y:hidden; }
   .side-panel .nav-item { flex:1; min-height:var(--bar-h); padding:4px 2px; border-left:0; border-top:4px solid transparent; }
   .side-panel .nav-item:hover:not(.active) { border-left-color:transparent; }
   .side-panel .nav-item.active { border-left-color:transparent; border-top-color:#ffb766; }
+  .side-panel .nav-ext { flex:1; min-height:var(--bar-h); margin-top:0; padding:4px 2px; border-left:0; border-top:4px solid transparent; }
+  .side-panel .nav-ext:hover { border-left-color:transparent; }
+  .side-panel .nav-ext h3 { font-size:11px; }
+  /* six tabs instead of five: each is narrower, so "Errand-Notes" wraps to two lines; trim the vertical padding so the bar keeps its 60px height */
+  .side-panel .nav-item, .side-panel .nav-ext { gap:0; padding:2px 2px 3px; }
+  .side-panel .nav-item button, .side-panel .nav-ext .nav-ext-icon { min-height:26px; }
+  .side-panel .nav-item h3, .side-panel .nav-ext h3 { line-height:1.1; }
   .side-panel .nav-item h3 { font-size:11px; }
   .head-banner { padding:6px 8px; gap:6px; }
   input, select, textarea, .card-module { font-size:16px; }
@@ -212,12 +214,6 @@ body { overflow-y:hidden; }
   .card-module[data-progress]::after { bottom:12px; }
   .module-reset-button { min-width:44px; min-height:44px; }
   .freeflow-tool-btn, .freeflow-clear-btn, .copy-button, .clear-button, .archive-button, .archive-action-btn { min-height:44px; }
-  .legal-toggle { display:inline-flex; min-height:44px; }
-  .legal-links { display:none; flex-basis:100%; flex-direction:column; gap:0; }
-  .legal-links.open { display:flex; }
-  .legal-links a { min-height:44px; display:flex; align-items:center; }
-  .footer-actions { width:100%; justify-content:space-between; }
-  .footer-actions .to-top { min-height:44px; }
 }
 
 /* ===== Skeleton loader ===== */
@@ -233,32 +229,14 @@ body { overflow-y:hidden; }
 .retry-btn { margin-left:10px; min-height:36px; padding:0 16px; border:0; border-radius:8px; background:#fff; color:#1c2630; font-weight:600; cursor:pointer; }
 
 /* ===== Footer: permanent row of the app grid; never moves with content ===== */
-:root { --foot-h:36px; }
 .app-body { display:grid; grid-template-columns:88px minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto var(--foot-h); grid-template-areas:"nav main" "nav bar" "foot foot"; }   /* `bar` = floating ad row, 0 high when there is none */
 .side-panel { grid-area:nav; min-height:0; }
 .main-page { grid-area:main; min-height:0; }
-.site-footer { grid-area:foot; position:relative; z-index:50; height:var(--foot-h); margin:0; display:flex; align-items:center; }
-.footer-bottom { width:100%; flex-wrap:nowrap; gap:12px; padding:0 16px; }
-.copyright { flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.footer-actions { flex:none; flex-wrap:nowrap; width:auto; }
-@media (max-width:900px) {
-  .legal-toggle { display:inline-flex; min-height:32px; }
-  .footer-actions .to-top { min-height:32px; }
-  .legal-links { display:none; position:absolute; right:8px; bottom:calc(100% + 6px); flex-direction:column; flex-basis:auto; gap:0; min-width:210px; padding:6px; background:#1a252f; border:1px solid rgba(255,255,255,.3); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.45); }
-  .legal-links.open { display:flex; }
-  .legal-links a { min-height:44px; display:flex; align-items:center; padding:0 10px; }
-  .footer-actions { justify-content:flex-end; gap:10px; }
-  #footer-meta { display:none; }
-}
 @media (max-width:768px) {
-  :root { --foot-h:40px; }
   .app-body { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto var(--foot-h) auto; grid-template-areas:"main" "bar" "foot" "nav"; }
   .sk-row { grid-template-columns:1fr; } .sk-title { min-height:56px; }
 }
 
-
-/* ===== Ads ===== */
-.search-active .ad-banner { display:none; }
 
 /* ===== Freeflow notes: premium + accessibility tools ===== */
 .ff-extras { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; }
@@ -282,18 +260,6 @@ html, body { height:100% !important; overflow:hidden !important; }
 @media (prefers-reduced-motion: no-preference) { .main-page { scroll-behavior:smooth; } }
 @media (min-width:769px) { .script-title-chat.active, .script-title-voice.active, .script-card-sub.active { margin-bottom:14px; } }
 
-/* ===== Ads: invisible and zero-height until AdSense has actually filled them ===== */
-.ad-slot { margin:0; padding:0; border:0 solid transparent; max-height:0; overflow:hidden; opacity:0; text-align:center; transition:max-height .5s ease, opacity .4s ease, margin .5s ease, padding .5s ease; }
-.ad-slot.is-filled { max-height:620px; opacity:1; margin:24px 12px; padding:8px; border:1px solid rgba(255,255,255,.22); border-radius:8px; }
-.ad-slot.is-empty, .ad-slot[hidden] { display:none; }
-.ad-slot ins.adsbygoogle[data-ad-status="unfilled"] { display:none !important; }
-.ad-label { display:block; margin-bottom:6px; font-size:var(--fs-cap); letter-spacing:.08em; text-transform:uppercase; color:#dbe6f0; }
-.ad-banner { grid-column:1 / -1; }
-.ad-banner.is-filled { margin:6px 0 20px; }
-.ad-links.is-filled { margin:24px 0 0; }
-.ad-slot.is-leaving { max-height:0; opacity:0; margin:0; padding:0; border-width:0; }
-.search-active .ad-banner { display:none; }
-
 /* ===== Freeflow: the text area takes the remaining space and is the only thing that scrolls ===== */
 #notes-page.active { display:flex; flex-direction:column; height:100%; min-height:0; }
 #notes-page.active > * { flex:none; }
@@ -312,11 +278,7 @@ textarea, .tab-clip, .legal-links, .archived-table-container, .checklist-canvas 
 ::-webkit-scrollbar-corner { background:transparent; }
 @supports not selector(::-webkit-scrollbar) { * { scrollbar-width:thin; scrollbar-color:var(--sb-hover) transparent; } }
 
-/* ===== Round 6: Links ad strip, Freeflow layout, update toast (the in-feed units were removed in Round 10) ===== */
-
-.ad-links.is-filled { margin:8px 16px 16px; }
-
-/* Freeflow notes: tools + (optional) thin ad strip + text area [+ 20% ad column]. The page is scroll-locked; only the textarea scrolls. */
+/* Freeflow notes: tools + text area [+ right-hand ad column]. The page is scroll-locked; only the textarea scrolls. */
 body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gutter:auto; }
 #notes-page.active { display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden; }
 #notes-page.active > * { flex:none; }
@@ -324,21 +286,9 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 #notes-page .freeflow-toolbar { position:static; padding:8px 16px 4px; border-bottom:0; }
 #notes-page .ff-extras { padding:0 16px 8px; background:#2c3e50; border-bottom:1px solid rgba(255,255,255,.08); }
 #notes-page .ff-note { flex:1 1 280px; }
-.freeflow-body { display:grid; grid-template-columns:minmax(0,1fr) 0; column-gap:0; padding:12px 16px; min-height:0; transition:grid-template-columns .35s ease, column-gap .35s ease; }
-.freeflow-body.has-side { grid-template-columns:minmax(0,1fr) 20%; column-gap:12px; }
+.freeflow-body { display:grid; grid-template-columns:minmax(0,1fr); padding:12px 16px; min-height:0; }        /* the right-hand ad column (.has-rail) is added by assets/css/ads.css */
 #notes-page .freeflow-input { height:auto; min-height:0; padding:0; }
 #notes-page .freeflow-input textarea { height:100%; min-height:0; }
-
-/* Freeflow strip: one row, label inline so the strip is only as tall as the ad plus a hair of padding */
-.ad-ff-bar { display:flex; align-items:center; justify-content:center; gap:10px; }
-.ad-ff-bar .ad-label { margin:0; flex:none; }
-.ad-ff-bar.is-filled { margin:0; padding:3px 16px; border-width:1px 0; border-radius:0; max-height:80px; }
-
-/* Freeflow column: keeps the grid's full height, never grows the page. Zero width until filled; hidden (not clipped) if it stops fitting. */
-.ad-ff-side { grid-column:2; max-height:none; min-height:0; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }
-.ad-ff-side.is-filled { max-height:none; margin:0; padding:6px; border-radius:8px; }
-.ad-ff-side.is-oversize { visibility:hidden; }
-.ad-ff-side ins { max-width:100%; }
 
 @media (max-width:768px) { .freeflow-body { padding:8px; } }
 
@@ -347,39 +297,3 @@ body[data-page="notes"] .main-page { overflow-y:hidden !important; scrollbar-gut
 .aces-toast.show { opacity:1; transform:none; pointer-events:auto; }
 .aces-toast button { margin-left:12px; min-height:32px; padding:0 14px; border:0; border-radius:8px; background:#fff; color:#1c2630; font-weight:600; cursor:pointer; }
 @media (max-width:768px) { .aces-toast { left:12px; right:12px; bottom:calc(var(--foot-h, 40px) + var(--float-h, 0px) + var(--bar-h, 60px) + env(safe-area-inset-bottom) + 12px); max-width:none; } }
-
-/* ===== Round 8: reserved ad boxes (nothing moves when an ad arrives), rectangle width cap, bigger Freeflow strip ===== */
-.ad-slot.is-reserved { max-height:none; opacity:1; min-height:calc(var(--ad-reserve, 0px) + var(--ad-chrome, 44px)); margin:24px 12px; padding:8px;
-  border:1px dashed rgba(255,255,255,.28); border-radius:8px; }                      /* blank + labelled "Advertisement" until the unit is requested */
-.ad-slot.is-reserved.is-filled { border-style:solid; border-color:rgba(255,255,255,.22); }
-.ad-slot .ad-box { max-width:var(--ad-box-max, none); min-height:var(--ad-reserve, 0px); margin:0 auto; display:flex; align-items:center; justify-content:center; }
-.ad-slot .ad-box ins.adsbygoogle { width:100%; }
-.ad-links.is-reserved { margin:8px 16px 16px; }
-.ad-ff-bar.is-reserved { --ad-chrome:10px; display:flex; margin:0; padding:3px 16px; border-width:1px 0; border-radius:0; max-height:none; }
-.ad-ff-side.is-reserved { --ad-chrome:44px; margin:0; padding:6px; border-radius:8px; }
-.ad-slot.is-empty { display:none !important; }
-.search-active .ad-end { display:none; }
-
-/* ===== Round 9: sticky ad column (desktop). The unit lives in its own grid column of the content, so it never overlaps or underlaps anything. ===== */
-.script-canvas.has-rail, .checklist-canvas.has-rail { display:grid; grid-template-columns:minmax(0,1fr) var(--rail-col, 314px); column-gap:var(--rail-gap, 16px); align-items:start; }
-.has-rail > .script-module, .has-rail > .checklist-module { grid-column:1; grid-row:1; min-width:0; }
-.checklist-canvas.has-rail { overflow:visible; }                           /* an overflow:auto parent would stop position:sticky from working */
-.ad-rail { display:none; }
-.has-rail > .ad-rail.is-reserved { display:flex; flex-direction:column; align-items:center; grid-column:2; grid-row:1; position:sticky; top:var(--rail-top, 64px);
-  min-height:calc(var(--ad-reserve, 250px) + var(--ad-chrome, 44px)); margin:0; padding:6px; border-radius:8px; max-height:none; overflow:hidden; }
-.has-rail > .ad-rail ins.adsbygoogle { max-width:100%; }
-.tabs-open .ad-rail { visibility:hidden; }                               /* the open tab rail is covering the page edge */
-/* Round 11: a replacement unit waits on top of the current ad (same grid cell, same size) and shows nothing until AdSense has filled it, so the old ad stays visible meanwhile */
-.ad-slot.is-staged:not(.is-filled) { border-color:transparent; background:transparent; }
-.ad-slot.is-staged:not(.is-filled) .ad-label { visibility:hidden; }
-.search-active .script-canvas.has-rail { display:block; }                 /* search results use the full width */
-.search-active .script-canvas.has-rail > .ad-rail { display:none; }
-/* ===== Round 13: floating bar above the footer (windows too narrow for the rail) ===== */
-/* A row of the app grid (see .app-body): fixed in place, content ends above it, so the last script card is never covered. 6px of air above the footer's buttons. */
-.ad-float { grid-area:bar; min-width:0; }
-.ad-slot.ad-float.is-reserved { --ad-chrome:30px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; margin:0 0 6px; padding:3px 8px; border-width:1px 0 0; border-radius:0; max-height:none; overflow:hidden; background:rgba(0,0,0,.22); }
-.ad-slot.ad-float .ad-label { margin:0; flex:none; }
-.ad-slot.ad-float ins.adsbygoogle { max-width:100%; }
-@media (min-width:769px) { .ad-slot.ad-float.is-reserved { --ad-chrome:10px; flex-direction:row; gap:12px; } }   /* label beside the ad, like the Freeflow strip */
-.app-body.no-float > .ad-float, .ad-float.is-oversize, .search-active .ad-float { display:none !important; }   /* other section / window too small / search results */
-.ad-slot.is-reserved { transition:none; }                                  /* a box that opens over 0.5 s pushes the cards below it down frame by frame (many small layout shifts); open it instantly instead */

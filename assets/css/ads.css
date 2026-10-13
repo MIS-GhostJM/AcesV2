@@ -1,0 +1,73 @@
+/* ACES ad slots: ONE stylesheet, shared by the Scripts app (index.html) and the tool pages (/FDCalc, /FRprompt). Behaviour lives in assets/js/ads.js.
+   Every slot is an <aside class="ad-slot ..."> that is invisible and zero-height until it is reserved (set aside while still off screen) and
+   removed again if AdSense does not fill it. Kinds: .ad-rail (right-hand skyscraper container), .ad-float (narrow windows), .ad-end, .ad-links. */
+
+/* Colours (the Scripts app is dark; the tool pages are light and override these on :root in assets/css/tools-shell.css):
+     --ad-ink = label text, --ad-line = border of a filled box, --ad-line-dashed = border of a box still waiting, --ad-float-bg = background of the floating bar */
+:root { --ad-ink:#dbe6f0; --ad-line:rgba(255,255,255,.22); --ad-line-dashed:rgba(255,255,255,.28); --ad-float-bg:rgba(0,0,0,.22); }
+
+/* ---- base: invisible and zero-height until reserved ---- */
+.ad-slot { margin:0; padding:0; border:0 solid transparent; max-height:0; overflow:hidden; opacity:0; text-align:center; }
+.ad-slot.is-filled { max-height:620px; opacity:1; margin:24px 12px; padding:8px; border:1px solid var(--ad-line); border-radius:8px; }
+.ad-slot.is-empty, .ad-slot[hidden] { display:none; }
+.ad-slot ins.adsbygoogle[data-ad-status="unfilled"] { display:none !important; }
+.ad-label { display:block; margin-bottom:6px; font-size:var(--fs-cap, 12px); letter-spacing:.08em; text-transform:uppercase; color:var(--ad-ink); }
+
+/* ---- reserved: a blank, labelled box that keeps its height when the creative arrives (nothing moves under the pointer) ---- */
+.ad-slot.is-reserved { max-height:none; opacity:1; min-height:calc(var(--ad-reserve, 0px) + var(--ad-chrome, 44px)); margin:24px 12px; padding:8px;
+  border:1px dashed var(--ad-line-dashed); border-radius:8px; }
+.ad-slot.is-reserved.is-filled { border-style:solid; border-color:var(--ad-line); }
+.ad-slot .ad-box { max-width:var(--ad-box-max, none); min-height:var(--ad-reserve, 0px); margin:0 auto; display:flex; align-items:center; justify-content:center; }
+.ad-slot .ad-box ins.adsbygoogle { width:100%; }
+.ad-links.is-filled, .ad-links.is-reserved { margin:8px 16px 16px; }
+.ad-slot.is-empty { display:none !important; }
+.ad-slot.is-reserved { transition:none; }                      /* a box that opens over 0.5 s pushes content down frame by frame; open it instantly */
+.search-active .ad-end { display:none; }
+
+/* ---- right-hand skyscraper container (Scripts, Checklist, Free-flow, /FDCalc, /FRprompt) ----
+   One tall container in its own grid column: it fills the free height of the page (--adr-h, set by ads.js = the space between the category bar and the footer),
+   never scrolls (overflow hidden), and holds ONE responsive unit with data-ad-format="auto", so AdSense can pick the highest-paying size that fits the
+   column. The column never overlaps or underlaps content, keeps its label, and ends where the content ends (Google's sticky-ad conditions). */
+.ad-rail { display:none; }
+.has-rail { display:grid; grid-template-columns:minmax(0,1fr) var(--adr-col, 314px); column-gap:var(--adr-gap, 16px); align-items:start; }
+.has-rail > .script-module, .has-rail > .checklist-module, .has-rail > .freeflow-input, .has-rail > .tool-content { grid-column:1; grid-row:1; min-width:0; }
+.checklist-canvas.has-rail { overflow:visible; }               /* an overflow:auto parent would stop position:sticky from working */
+.has-rail > .ad-rail.is-reserved { display:flex; flex-direction:column; align-items:stretch; grid-column:2; grid-row:1;
+  position:sticky; top:var(--adr-top, 64px); margin:var(--adr-gap-top, 12px) 0 0; height:var(--adr-h, 600px); min-height:0;
+  padding:6px; border-radius:8px; max-height:none; overflow:hidden; }
+.ad-rail .ad-label { flex:none; }
+.ad-rail .ad-box { flex:1 1 auto; min-height:0; max-width:none; width:100%; margin:0; overflow:hidden; }
+.ad-rail .ad-box ins.adsbygoogle { display:block; width:100%; height:100%; max-height:100%; }
+.freeflow-body.has-rail { align-items:stretch; }              /* Free-flow does not scroll: the column simply spans the text area's height */
+.freeflow-body.has-rail > .ad-rail.is-reserved { position:static; height:auto; margin:0; align-self:stretch; }
+.tabs-open .ad-rail { visibility:hidden; }                      /* the open tab rail is covering the page edge */
+/* a replacement unit waits on top of the current ad (same grid cell, same size) and shows nothing until AdSense has filled it, so the old ad stays visible meanwhile */
+.ad-slot.is-staged:not(.is-filled) { border-color:transparent; background:transparent; }
+.ad-slot.is-staged:not(.is-filled) .ad-label { visibility:hidden; }
+.search-active .script-canvas.has-rail { display:block; }       /* search results use the full width */
+.search-active .script-canvas.has-rail > .ad-rail { display:none; }
+
+/* ---- floating bar above the footer (windows too narrow for the rail) ----
+   A row of the app grid (see .app-body): fixed in place, content ends above it, so nothing is ever covered. 6px of air above the footer's buttons. */
+.ad-float { grid-area:bar; min-width:0; }
+.ad-slot.ad-float.is-reserved { --ad-chrome:30px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; margin:0 0 6px; padding:3px 8px; border-width:1px 0 0; border-radius:0; max-height:none; overflow:hidden; background:var(--ad-float-bg); }
+.ad-slot.ad-float .ad-label { margin:0; flex:none; }
+.ad-slot.ad-float ins.adsbygoogle { max-width:100%; }
+@media (min-width:769px) { .ad-slot.ad-float.is-reserved { --ad-chrome:10px; flex-direction:row; gap:12px; } }   /* label beside the ad */
+.app-body.no-float > .ad-float, .ad-float.is-oversize, .search-active .ad-float { display:none !important; }   /* other section / window too small / search results */
+
+/* ---- Round 15: container fit ----
+   When a responsive creative arrives, ads.js measures it (--ad-fit-w / --ad-fit-h on the slot, data-fit="1") and the container hugs it: no empty frame around a
+   300x250 inside a 600 px column. Only containers where nothing beside or below can move are fitted: the rail (its own grid column) and the Checklist end unit
+   (last thing on the page). The reserved box is kept until the size is known, so nothing moves while the ad loads. */
+.has-rail > .ad-rail.is-reserved[data-fit] { height:auto; box-sizing:border-box; width:calc(var(--ad-fit-w) + 14px); max-width:100%; justify-self:center; }
+.freeflow-body.has-rail > .ad-rail.is-reserved[data-fit] { align-self:start; }
+.ad-rail[data-fit] .ad-box { flex:none; height:var(--ad-fit-h); width:100%; }
+.ad-rail[data-fit] .ad-box ins.adsbygoogle { height:var(--ad-fit-h); max-height:none; }
+.ad-end.is-reserved[data-fit] { min-height:0; }
+.ad-end[data-fit] .ad-box { min-height:0; height:var(--ad-fit-h); }
+.ad-end[data-fit] .ad-box ins.adsbygoogle { height:var(--ad-fit-h); }
+/* a staged replacement keeps the size of the box it will replace until its own creative has arrived */
+.ad-rail.is-staged:not([data-fit]) { width:auto; }
+/* an unfilled replacement waits invisibly on top of the ad that is still showing: it must not swallow clicks meant for that ad */
+.ad-slot.is-staged:not(.is-filled), .ad-slot.is-staged:not(.is-filled) * { pointer-events:none; }

@@ -1,0 +1,382 @@
+/* FDCalc: page styles. The app shell (scroll area, footer row, right-hand ad column) is shared with the rest of ACES: /assets/css/tools-shell.css, site-footer.css, ads.css */
+/* CSS Custom Properties for Theme */
+:root {
+    /* Color Scheme */
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #60a5fa;
+    --secondary-color: #475569;
+    --accent-color: #8b5cf6;
+    
+    /* Neutral Colors */
+    --background-primary: #ffffff;
+    --background-secondary: #f8fafc;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    
+    /* Status Colors */
+    --success-color: #22c55e;
+    --warning-color: #eab308;
+    --error-color: #ef4444;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    
+    /* Border Radius */
+    --border-radius-sm: 0.25rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 1rem;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 350ms ease;
+}
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Layout */
+.container {
+    max-width: 900px; /* Reduced from 1200px */
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-lg) var(--spacing-sm);
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 768px) {
+    .container {
+        flex-direction: row;
+        gap: var(--spacing-lg); /* Reduced from xl */
+    }
+}
+
+.main-content {
+    background-color: var(--background-primary);
+    padding: var(--spacing-md); /* Reduced from xl */
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    flex: 1;
+}
+
+.side-panel {
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .side-panel {
+        width: 280px; /* Reduced from 350px */
+        position: sticky;
+        top: var(--spacing-xl);
+        height: fit-content;
+    }
+}
+
+/* Typography */
+h1 {
+    color: var(--text-primary);
+    font-size: 1.5rem; /* Reduced from 1.875rem */
+    font-weight: 700;
+    margin-bottom: var(--spacing-md); /* Reduced from lg */
+}
+
+h2, h3 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm); /* Reduced from md */
+    font-size: 1.125rem; /* Added smaller font size */
+}
+
+/* Controls Section */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm); /* Reduced from md */
+    margin-bottom: var(--spacing-md); /* Reduced from xl */
+}
+
+.input-group {
+    flex: 1;
+    min-width: 150px; /* Reduced from 200px */
+}
+
+/* Form Elements */
+label {
+    display: block;
+    font-size: 0.75rem; /* Reduced from 0.875rem */
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+input, select {
+    width: 100%;
+    padding: calc(var(--spacing-sm) * 0.8) var(--spacing-sm); /* Reduced padding */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem; /* Reduced from 1rem */
+    transition: border-color var(--transition-fast);
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Buttons */
+button {
+    padding: calc(var(--spacing-sm) * 0.8) var(--spacing-sm); /* Reduced padding */
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    font-size: 0.875rem; /* Added smaller font size */
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: none;
+}
+
+.clear-fields-button {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.clear-fields-button:hover {
+    background-color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.add-tax-button {
+    background-color: var(--primary-color);
+    color: white;
+    width: 100%;
+    margin-top: var(--spacing-sm); /* Reduced from md */
+}
+
+.add-tax-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.remove-tax-button {
+    background-color: var(--error-color);
+    color: white;
+    font-size: 0.75rem; /* Reduced from 0.875rem */
+    padding: calc(var(--spacing-xs) * 1.2) var(--spacing-sm); /* Made even smaller */
+}
+
+.remove-tax-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    margin: var(--spacing-md) 0; /* Reduced from lg */
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem; /* Added smaller font size */
+}
+
+th, td {
+    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding */
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: var(--background-secondary);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.75rem; /* Made even smaller */
+}
+
+/* Tax input field styling */
+.tax-type {
+    width: 2.5rem; /* Make tax type inputs narrower */
+    text-align: center;
+}
+
+/* Summary Panel */
+.summary {
+    background-color: var(--background-primary);
+    padding: var(--spacing-md); /* Reduced from lg */
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+/* Notes Panel */
+.notes {
+    background: linear-gradient(135deg, #fee2e2, #fef9c3); /* Fixed the linear-gradient syntax */
+    padding: var(--spacing-md); /* Reduced from lg */
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    margin-bottom: 8px;
+    font-size: 0.875rem; /* Added smaller font size */
+}
+
+.notes li {
+    margin-bottom: 6px; /* Reduced from 8px */
+    color: #78350f;
+    font-size: 0.75rem; /* Reduced from 12px */
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md); /* Reduced from lg */
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0; /* Reduced from sm */
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.875rem; /* Added smaller font size */
+}
+
+.summary-item.total {
+    font-weight: 700;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+}
+
+/* Tax Breakdown */
+.tax-breakdown {
+    font-size: 0.75rem; /* Added smaller font size */
+    margin-top: var(--spacing-sm);
+}
+
+.tax-list div {
+    padding: var(--spacing-xs) 0;
+}
+
+/* Copy Button */
+.copy-button {
+    background: none;
+    padding: var(--spacing-xs);
+    color: var(--text-secondary);
+}
+
+.copy-button:hover {
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.copy-button.success {
+    color: var(--success-color);
+    animation: pulse 0.5s ease-in-out;
+}
+
+.copy-button.error {
+    color: var(--error-color);
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Tooltip */
+.tooltip {
+    position: absolute;
+    background-color: var(--text-primary);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.75rem; /* Reduced from 0.875rem */
+    pointer-events: none;
+    animation: fadeIn 0.2s ease-in-out;
+    z-index: 1000;
+}
+
+/* Alert */
+.alert {
+    background-color: var(--error-color);
+    color: white;
+    padding: var(--spacing-sm); /* Reduced from md */
+    border-radius: var(--border-radius-sm);
+    margin-top: var(--spacing-sm); /* Reduced from md */
+    animation: slideIn 0.3s ease-in-out;
+    font-size: 0.875rem; /* Added smaller font size */
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: var(--spacing-sm);
+        flex-direction: column;
+    }
+    
+    .side-panel {
+        position: static;
+        width: 100%;
+    }
+    
+    .controls {
+        flex-direction: column;
+    }
+    
+    .input-group {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.25rem;
+    }
+    
+    .main-content, .summary, .notes {
+        padding: var(--spacing-sm);
+    }
+}

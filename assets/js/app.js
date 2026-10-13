@@ -4,8 +4,7 @@
   const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   const track = (n, p) => window.acesTrack?.(n, p);
 
-  // footer year, current page (used by ads + aria-current)
-  $('#year').textContent = new Date().getFullYear();
+  // current page (used by ads + aria-current). Footer year / Legal pop-up / Back to top live in assets/js/site-footer.js
   const pageOf = { 'script-page-action': 'scripts', 'errands-page-action': 'errands', 'notes-page-action': 'notes', 'check-list-page-action': 'checklist', 'links-page-action': 'links' };
   const setPage = btn => {
     document.body.dataset.page = pageOf[btn.id];
@@ -73,9 +72,6 @@
     else if (e.key === 'Escape' && e.target.id === 'search-input') { e.target.value ? $('#search-clear')?.click() : e.target.blur(); }
     else if (e.altKey && /^[1-5]$/.test(e.key)) { e.preventDefault(); document.getElementById(Object.keys(pageOf)[e.key - 1]).click(); }
   });
-  const lt = $('.legal-toggle');
-  lt.addEventListener('click', () => { const o = lt.getAttribute('aria-expanded') === 'true'; lt.setAttribute('aria-expanded', String(!o)); $('#legal-links').classList.toggle('open', !o); });
-  $('.to-top').addEventListener('click', e => { e.preventDefault(); $('.main-page').scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); });
   // scrollbar thumbs brighten while their container is scrolling (CSS does the animation)
   document.addEventListener('scroll', e => {
     const t = e.target; if (!t || t.nodeType !== 1) return;
