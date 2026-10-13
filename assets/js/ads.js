@@ -14,7 +14,7 @@
   // renewMinSec floor; old ad kept until the new one arrives; switches while a request is unanswered are dropped).
   //
   // Round 15: (1) the first ad of a page loads sooner (sticky units need 250 ms on screen, not 1 s; a visible window is enough, focus is only needed for renewals);
-  // (2) a box with no width waits instead of throwing "availableWidth=0"; (3) the container hugs the creative that arrived (fit); (4) a first request with no ad
+  // (2) a box with no width waits instead of throwing "availableWidth=0"; (3) the right-hand container is a FIXED skyscraper size picked from the free height (300x600, else 300x250), so it is exactly as big as the ad and never clipped; (4) a first request with no ad
   // does not kill the container for the visit: the next explicit user action brings it back and asks again (retryEmpty, capped); (5) more explicit user
   // actions can request a new ad (userAction: channel filter, search cleared, optionally Free-flow template / FR Prompt generate); (6) renewal floor 30 s.
   // Life of a slot:  planned (zero size)  ->  reserved (blank labelled box, set aside while it is still off screen, so nothing moves later)
@@ -26,11 +26,9 @@
   const G = Object.assign({ viewRatio: .5, dwellMs: 1000, dwellFixedMs: 250, tickMs: 200, lookaheadPx: 300, requireFocus: true, requireFocusFirst: false, idleSec: 90, maxRequestsPerMin: 6, giveUpMs: 12000 }, cfg.gate);
   const A = Object.assign({ channel: true, search: true, template: false, generate: false }, cfg.actions);          // explicit user actions that may request a new ad (see config.js)
   const RE = Object.assign({ max: 3, minGapSec: 15 }, cfg.retryEmpty);                                              // empty-container recovery
-  const FIT = cfg.fit !== false;                                                                                      // container hugs the creative
-  const E = Object.assign({ format: 'rectangle', reservePx: 280, boxMaxPx: 336 }, cfg.end);
   const L = Object.assign({ format: 'rectangle', reservePx: 280, boxMaxPx: 336 }, cfg.links);
-  const R = Object.assign({ enabled: true, pages: ['scripts', 'checklist', 'notes', 'fdcalc', 'frprompt'], minViewportW: 1280, widthPx: 300, minHeightPx: 250, topGapPx: 12, bottomGapPx: 12, gapPx: 16, renewMinSec: 30 }, cfg.rail);
-  const F = Object.assign({ enabled: true, pages: ['scripts', 'checklist', 'links', 'notes', 'fdcalc', 'frprompt'], sizes: [[728, 90], [320, 100]], minViewportH: 560 }, cfg.float);
+  const R = Object.assign({ enabled: true, pages: ['scripts', 'checklist', 'notes', 'fdcalc', 'frprompt'], minViewportW: 1280, widthPx: 300, sizes: [[300, 600], [300, 250]], minViewportWByPage: { notes: 1000, checklist: 1000 }, topGapPx: 12, bottomGapPx: 12, gapPx: 16, renewMinSec: 30 }, cfg.rail);
+  const F = Object.assign({ enabled: true, pages: ['scripts', 'links', 'fdcalc', 'frprompt'], sizes: [[728, 90], [320, 100]], minViewportH: 560 }, cfg.float);
   const IS_APP = !!$('.script-nav-container');          // the Scripts app (index.html); the tool pages (/FDCalc, /FRprompt) have no category bar
   const track = (n, p) => window.acesTrack?.(n, p), page = () => document.body.dataset.page || 'scripts';
   const pick = ([a, b]) => a + Math.floor(Math.random() * (b - a + 1));
@@ -38,25 +36,24 @@
 
   // A slot is an empty labelled box until its request: the <ins> is created inside request(), right before adsbygoogle.push().
   // AdSense fills the FIRST unprocessed <ins> in the page, so having exactly one at push time guarantees the right box gets the ad.
-  //   fill: true  = the skyscraper container: the box takes the height the page gives it (CSS: --adr-h) and the unit is a responsive "auto" unit inside it.
+  //   fill: true  = the skyscraper container (right-hand column): a FIXED size picked from the free height (see pickRailSize), so the box is exactly as big as the ad.
   const make = (cls, key, id, { fmt = 'auto', size, reserve = 0, boxMax, fill = false } = {}) => {
     const a = document.createElement('aside'); a.className = `ad-slot ${cls}`; a.dataset.slot = key; a.dataset.unit = id;
     if (size) a.dataset.size = size.join('x'); else a.dataset.fmt = fmt;
     if (fill) a.dataset.fill = '1';
     if (cls === 'ad-rail' || cls === 'ad-float') a.dataset.sticky = '1';                      // always on screen: a short dwell is enough before the request
     a.style.setProperty('--ad-reserve', (size ? size[1] : reserve) + 'px');
+    if (size) a.style.setProperty('--ad-w', size[0] + 'px');
     if (boxMax) a.style.setProperty('--ad-box-max', boxMax + 'px');
     a.setAttribute('aria-label', 'Advertisement');
-    a.innerHTML = '<span class="ad-label">Advertisement</span>' + (size ? '' : '<div class="ad-box"></div>');
+    a.innerHTML = '<span class="ad-label">Advertisement</span>' + (size && !fill ? '' : '<div class="ad-box"></div>');
     return a;
   };
   const insFor = slot => {
     const ins = document.createElement('ins'); ins.className = 'adsbygoogle';
     ins.setAttribute('data-ad-client', cfg.client); ins.setAttribute('data-ad-slot', slot.dataset.unit);
     if (slot.dataset.size) { const [w, h] = slot.dataset.size.split('x'); ins.style.cssText = `display:inline-block;width:${w}px;height:${h}px`; ins.dataset.fixed = '1'; }
-    else if (slot.dataset.fill) {                                      // skyscraper container: the unit is as wide and as tall as the container, format auto. Not full-width-responsive: it must stay inside its column
-      ins.style.cssText = 'display:block;width:100%;height:100%'; ins.setAttribute('data-ad-format', 'auto'); ins.setAttribute('data-full-width-responsive', 'false');
-    } else {                                                            // rectangles stay rectangles (300x250 / 336x280): no stretching to a leaderboard
+    else {                                                              // rectangles stay rectangles (300x250 / 336x280): no stretching to a leaderboard
       ins.style.display = 'block'; ins.setAttribute('data-ad-format', slot.dataset.fmt);
       ins.setAttribute('data-full-width-responsive', slot.dataset.fmt === 'rectangle' ? 'false' : 'true');
     }
@@ -95,7 +92,7 @@
     const m = $('.main-page').getBoundingClientRect(), r = slot.getBoundingClientRect();
     if (r.top < m.bottom + G.lookaheadPx && r.bottom > m.top - G.lookaheadPx) { near.unobserve(slot); reserve(slot); }
   };
-  const forget = slot => { near?.unobserve(slot); view?.unobserve(slot); viewV?.unobserve(slot); inView.delete(slot); slot._fitRO?.disconnect(); };
+  const forget = slot => { near?.unobserve(slot); view?.unobserve(slot); viewV?.unobserve(slot); inView.delete(slot); };
 
   function reserve(slot) {                   // set the box aside while it is still off screen (or the moment it appears), then wait for it to be seen
     if (slot.dataset.requested || !slot.isConnected) return;
@@ -127,33 +124,13 @@
       slot.classList.remove('is-empty', 'is-filled'); slot.classList.add(s === 'filled' ? 'is-filled' : 'is-empty');
       track('ads.slot.' + s, { slot: slot.dataset.slot, page: page() });
       slot.dispatchEvent(new CustomEvent('ad:status', { detail: s }));
-      if (s === 'filled') { watchViewable(slot); fit(slot); }           // the box keeps its reserved height until the creative size is known, then hugs it (fit)
+      if (s === 'filled') watchViewable(slot);                          // the box already has the exact size of the ad: nothing moves when the creative arrives
     };
     new MutationObserver((_, mo) => { const s = ins.getAttribute('data-ad-status'); if (s === 'filled' || s === 'unfilled') { mo.disconnect(); clearTimeout(slot._giveUp); settle(s); } })
       .observe(ins, { attributes: true, attributeFilter: ['data-ad-status'] });
     slot._giveUp = setTimeout(() => { if (!slot.classList.contains('is-filled')) settle('unfilled'); }, G.giveUpMs);   // blocked or never answered: do not leave a blank box
     try { (window.adsbygoogle = window.adsbygoogle || []).push({}); track('ads.slot.requested', { slot: slot.dataset.slot, page: page(), value: shownPct }); }
     catch { clearTimeout(slot._giveUp); settle('unfilled'); }
-  }
-  // Container fit: a responsive unit decides its own creative size (300x250, 300x600, 250x250 ...). Once it has arrived the container shrinks / grows to exactly
-  // that size, so there is no empty frame around it. Only for containers where nothing beside or below can move: the rail (its own column) and the Checklist end unit
-  // (last thing on the page). Re-measured a few times because a responsive creative may resize itself after load.
-  function fit(slot) {
-    if (!FIT || !(slot.dataset.fill || slot.classList.contains('ad-end'))) return;
-    const ins = slot.querySelector('ins.adsbygoogle'); if (!ins) return;
-    const measure = () => {
-      if (!slot.isConnected) return;
-      const fr = ins.querySelector('iframe'); if (!fr) return;
-      const b = fr.getBoundingClientRect(), w = Math.round(b.width || +fr.getAttribute('width') || 0), h = Math.round(b.height || +fr.getAttribute('height') || 0);
-      if (w < 50 || h < 30 || (+slot.dataset.fitW === w && +slot.dataset.fitH === h)) return;
-      slot.dataset.fitW = w; slot.dataset.fitH = h; slot.dataset.fit = '1';
-      slot.style.setProperty('--ad-fit-w', w + 'px'); slot.style.setProperty('--ad-fit-h', h + 'px');
-      track('ads.slot.fit', { slot: slot.dataset.slot, page: page(), value: h });
-      slot.dispatchEvent(new CustomEvent('ad:fit'));
-    };
-    requestAnimationFrame(() => requestAnimationFrame(measure));
-    [300, 1000, 2500].forEach(t => setTimeout(measure, t));
-    slot._fitRO?.disconnect(); slot._fitRO = new ResizeObserver(measure); slot._fitRO.observe(ins);
   }
   function watchViewable(slot) {             // own "viewable" proxy: >=50% visible for 1 s (kept as an event so you can compare it with AdSense's Active View)
     let t; const v = new IntersectionObserver(([e]) => { clearTimeout(t); if (e.isIntersecting) t = setTimeout(() => { track('ads.slot.viewable', { slot: slot.dataset.slot, page: page() }); v.disconnect(); }, 1000); }, { threshold: .5 });
@@ -195,7 +172,11 @@
     frprompt:  { canvas: '.tool-canvas',                  bar: null }
   };
   const rails = {};
-  const RAIL_CHROME = 44;                   // label + padding + border around the unit inside the container, in px
+  const RAIL_CHROME = 40;                   // label + padding + border around the unit inside the container, in px (measured: 250 px ad -> 289 px box)
+  const railMinW = p => (R.minViewportWByPage || {})[p] || R.minViewportW;      // Free-flow and Checklist keep their right-hand column in narrower windows than Scripts
+  // The skyscraper is a FIXED size picked from the free height (first size in R.sizes that fits, tallest first): the container is then exactly as big as the ad,
+  // nothing is ever clipped or taller than the page, and nothing moves when the creative arrives. No size fits = no column (never a bottom bar on these pages).
+  const pickRailSize = r => (R.sizes || []).find(([w, h]) => w <= R.widthPx && h + RAIL_CHROME <= r.free) || null;
   // Unit ID per page: Free-flow may have its own (slots.notesSide), the tool pages may have their own (slots.tools); everything else uses slots.rail. All fall back to `banner`.
   const railId = pg => (pg === 'notes' && S.notesSide) || ((pg === 'fdcalc' || pg === 'frprompt') && S.tools) || S.rail || S.banner;
 
@@ -217,23 +198,30 @@
       free = main.clientHeight - top - R.bottomGapPx;
     }
     r.free = Math.floor(free); cv.style.setProperty('--adr-h', r.free + 'px');
-    r.fits = r.free >= R.minHeightPx + RAIL_CHROME;                      // too little room for even a 300x250: hand the column back
+    r.fits = r.size ? r.free >= r.size[1] + RAIL_CHROME : !!pickRailSize(r);   // the window got too short for the ad that is showing: hide the column (never clip the ad)
     r.sync?.();
+  }
+  const late = {};
+  function watchLate(page, canvas) {                                 // mounts the rail the moment its page has room for an ad (a transient first measurement, or a window that was enlarged)
+    if (late[page]) return;
+    const ro = new ResizeObserver(() => { mountRail(page); if (rails[page]) { ro.disconnect(); delete late[page]; } });
+    ro.observe(canvas); ro.observe($('.main-page')); late[page] = ro;
   }
   function mountRail(page) {
     const id = railId(page), spec = RAIL[page];
-    if (!R.enabled || !id || !spec || rails[page] || !(R.pages || []).includes(page) || window.ACES_ADS_BLOCKED || innerWidth < R.minViewportW) return;
+    if (!R.enabled || !id || !spec || rails[page] || !(R.pages || []).includes(page) || window.ACES_ADS_BLOCKED || innerWidth < railMinW(page)) return;
     const canvas = $(spec.canvas), bar = spec.bar ? $(spec.bar) : null;
     if (!canvas || (spec.bar && !bar) || !canvas.firstElementChild) return;
     const r = { page, canvas, bar, id, host: canvas, cls: 'ad-rail', key: 'rail', fill: true, flow: !!spec.flow, free: 0, fits: false, release: () => canvas.classList.remove('has-rail'), el: null, next: null, shownAt: 0, dead: false };
-    const mq = matchMedia(`(min-width:${R.minViewportW}px)`);            // a window dragged narrower gives the column back (the box is hidden, never swapped)
+    const mq = matchMedia(`(min-width:${railMinW(page)}px)`);              // a window dragged narrower gives the column back (the box is hidden, never swapped)
     r.sync = () => canvas.classList.toggle('has-rail', mq.matches && !r.dead && !r.collapsed && r.fits);
     r.layout = () => railLayout(r);
-    railLayout(r); if (!r.fits) return;                                  // no room: do not mount (it can mount later, see syncFloat)
+    railLayout(r); if (!r.fits) { watchLate(page, canvas); return; }     // no room (yet): do not mount now, mount as soon as the page grows (watchLate) or the window is enlarged (syncFloat)
+    r.size = pickRailSize(r); if (!r.size) { watchLate(page, canvas); return; }   // the first measurement can be taken before the page has finished laying out: look again when it grows
     rails[page] = r;
     mq.addEventListener('change', r.sync);
     const ro = new ResizeObserver(r.layout); ro.observe($('.main-page')); if (bar) ro.observe(bar); if (r.flow) ro.observe(canvas);
-    attachRail(r, make('ad-rail', 'rail', id, { fill: true }));
+    attachRail(r, make('ad-rail', 'rail', id, { fill: true, size: r.size }));
     track('ads.rail.mounted', { page, value: r.free });
   }
   function attachRail(r, el) {                                       // the FIRST unit of a page (replacements go through stageRail)
@@ -268,9 +256,9 @@
     r.collapsed = false;
     if (r === fl) { if (!floatAllowed()) { r.collapsed = true; return; } mountFloat(); if (!fl.el) { r.collapsed = true; return; } }
     else {
-      railLayout(r);
-      if (!r.fits) { r.collapsed = true; return; }                                   // still no room: stay collapsed (does not count as a try)
-      attachRail(r, make('ad-rail', 'rail', r.id, { fill: true }));
+      railLayout(r); const size = pickRailSize(r);
+      if (!size) { r.collapsed = true; return; }                                     // still no room: stay collapsed (does not count as a try)
+      r.size = size; attachRail(r, make('ad-rail', 'rail', r.id, { fill: true, size }));
     }
     track('ads.rail.retry_empty', { page: r.page, value: r.tries });
   }
@@ -283,9 +271,9 @@
     track('ads.rail.cancelled', { page: r.page, label: why });
   }
   function stageRail(r) {
-    const size = r.fill ? null : (r.pickSize ? r.pickSize() : r.size); if (!r.fill && !size) return;   // the floating bar re-picks its size for the window it is in now; the container takes whatever height the page gives it
-    if (size) r.size = size;
-    const fresh = make(r.cls, r.key, r.id, r.fill ? { fill: true } : { size });
+    const size = r.fill ? pickRailSize(r) : (r.pickSize ? r.pickSize() : r.size); if (!size) return;   // both re-pick their size for the window they are in now
+    r.size = size;
+    const fresh = make(r.cls, r.key, r.id, r.fill ? { fill: true, size } : { size });
     if (r.viewport) fresh.dataset.root = 'viewport';
     fresh.classList.add('is-staged'); r.next = fresh;
     fresh.addEventListener('ad:status', e => {
@@ -302,6 +290,15 @@
     reserve(fresh);                                                  // AdSense is asked only once it has been seen (gate), like every other unit
     track('ads.rail.renew', { page: r.page });
   }
+  // The window became too short for the (tall) ad that was on screen, so the column was handed back instead of clipping it. The NEXT explicit user action
+  // (already past the renewMinSec floor and every gate of renewUnit) replaces that hidden ad with a unit of the size that fits the room there is now.
+  function refitRail(r) {
+    const size = pickRailSize(r); if (!size || !r.el) return;
+    const old = r.el; r.el = null; r.shownAt = 0; forget(old); old.remove();
+    r.size = size; railLayout(r);
+    attachRail(r, make('ad-rail', 'rail', r.id, { fill: true, size }));
+    track('ads.rail.refit', { page: r.page, value: size[1] });
+  }
   function renewRail(page) { const r = rails[page]; if (!r) return; r.collapsed ? retryEmpty(r) : renewUnit(r); }   // called after a user switched to a DIFFERENT category / checklist
   function renewUnit(r) {
     if (r.dead || !r.el) return; const page = r.page;
@@ -310,6 +307,7 @@
     if (r.next || (r.el.dataset.requested && !r.shownAt)) { track('ads.rail.renew_skipped', { page, label: 'pending' }); return; }
     if (!r.el.dataset.requested) return;                             // first unit not requested yet: it will be, for this very view
     if (Date.now() - r.shownAt < R.renewMinSec * 1000) { track('ads.rail.renew_skipped', { page, label: 'min_age' }); return; }   // current ad rendered < renewMinSec ago: keep it
+    if (r.fill && !r.fits) { refitRail(r); return; }                 // the window got too short for the ad that was showing: the column is hidden, so swap it for the size that fits now
     stageRail(r);
   }
 
@@ -319,7 +317,7 @@
   // condition). No bar = no row = no space taken. Same lifecycle as the rail: requested once seen, renewed by the same rules (renewUnit).
   const fl = { page: 'float', cls: 'ad-float', key: 'float', viewport: true, host: null, el: null, next: null, shownAt: 0, dead: false, size: null, id: null };
   const floatId = () => S.float || S.rail || S.banner;
-  const floatAllowed = () => F.enabled && !fl.dead && !window.ACES_ADS_BLOCKED && innerWidth < R.minViewportW && (F.pages || []).includes(page());
+  const floatAllowed = () => F.enabled && !fl.dead && !window.ACES_ADS_BLOCKED && innerWidth < railMinW(page()) && (F.pages || []).includes(page());
   fl.pickSize = () => { const w = $('.main-page').clientWidth; return innerHeight < F.minViewportH ? null : (F.sizes || []).find(s => s[0] + 24 <= w) || null; };
   fl.hidden = () => document.body.classList.contains('search-active') || !!fl.host?.classList.contains('no-float');
   fl.release = () => floatVars();
@@ -359,10 +357,22 @@
     track('ads.action', { label: kind, page: page() });
   }
 
+  // Diagnostics only: if AdSense Auto ads (in-page, anchor, vignette) are switched on for the site, Google inserts its own containers, which can squeeze this fixed
+  // layout. They are logged (acesMetrics.top('ads.auto_detected')), never hidden or moved: hiding a unit Google has served is invalid-impression territory. Fix: AdSense > Ads > By site > Auto ads OFF.
+  function watchAutoAds() {
+    const SEL = '.google-auto-placed, ins[data-anchor-status], ins[data-vignette-loaded]', seen = new Set();
+    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => {
+      if (n.nodeType !== 1) return;
+      const hit = n.matches?.(SEL) ? n : n.querySelector?.(SEL);
+      if (!hit || seen.has(hit)) return;
+      seen.add(hit); window.ACES_AUTO_ADS = true;
+      track('ads.auto_detected', { page: page(), label: (String(hit.className || '').split(' ')[0] || hit.tagName.toLowerCase()).slice(0, 40) });
+    }))).observe(document.body, { childList: true, subtree: true });
+  }
+
   let lastList = null;
   function showFor() {
     const p = page();
-    document.querySelectorAll('.ad-end').forEach(s => { s.hidden = !(cfg.endPages || []).includes(p); });
     if (p === 'links') linksFeed();
     if (RAIL[p]) requestAnimationFrame(() => {                       // first visit (also after a restore that opened another page), or back again: mount, or just re-measure
       mountRail(p); rails[p]?.layout(); if (rails[p]?.collapsed) retryEmpty(rails[p]);
@@ -375,7 +385,7 @@
     action: userAction,                                                // other scripts may report an explicit user action: AcesAds.action('template')
     init() {
       if (!cfg.enabled || window.ACES_CONSENT?.ads === false) return;
-      if (S.end && IS_APP) { const end = make('ad-end', 'end', S.end, { fmt: E.format, reserve: E.reservePx, boxMax: E.boxMaxPx }); $('.main-page').append(end); watch(end); }
+      watchAutoAds();
       showFor();
       document.addEventListener('aces:page', showFor);
       $('.script-nav-container')?.addEventListener('click', e => {     // runs after the tab's own handlers, so the new category is already active

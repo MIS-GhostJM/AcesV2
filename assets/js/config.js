@@ -19,7 +19,7 @@ window.ACES_CONFIG = {
     enabled: true,
     client: 'ca-pub-6978764838614552',
     // Paste real ad-unit IDs (AdSense > Ads > By ad unit). An empty ID keeps that placement switched off.
-    //   end / links / banner : as before.      (The Scripts page has no horizontal units any more: no `feed`, and `end` is Checklist-only, see endPages.)
+    //   links / banner       : as before.      (No horizontal units anywhere but the Links tab: Scripts, Checklist and Free-flow carry the right-hand skyscraper only. The old `end` unit of the Checklist is gone.)
     //   float                : the floating bar of narrow windows (see `float` below). Falls back to `rail`, then `banner`. A dedicated unit gives it its own report line.
     //   rail                 : the right-hand skyscraper container (Scripts + Checklist). Falls back to `banner`. Create a dedicated RESPONSIVE display unit for it
     //                          (AdSense > Ads > By ad unit): the container uses data-ad-format="auto", which only works on a responsive unit, and a dedicated
@@ -28,14 +28,13 @@ window.ACES_CONFIG = {
     //                          (6965605774); if that one was created as a FIXED size, create a responsive unit and paste it here (or empty it to use `rail`).
     //   tools                : the same container on /FDCalc and /FRprompt (falls back to `rail`, then `banner`). The old FDCalc repo used a fixed 160x600 unit
     //                          (1292927956): paste it here only if it is a responsive unit.
-    slots: { end: '7813895425', banner: '5267623137', links: '6500813756', notesSide: '6965605774', rail: '', tools: '', float: '' },
-    endPages: ['checklist'],                                          // end-of-page unit: Checklist only. The Scripts page keeps just the sticky right rail
+    slots: { banner: '5267623137', links: '6500813756', notesSide: '6965605774', rail: '', tools: '', float: '' },
 
     // WHEN a unit may load (the RPM part). A box is set aside while it is still off screen, so nothing moves under the agent's pointer, and
     // is requested only while it is really on screen: that is what raises Active View viewability and with it the price advertisers pay.
     gate: {
       viewRatio: 0.5,            // request only while at least this share of the box is on screen...
-      dwellMs: 1000,             // ...for this long (units the agent scrolls past: Checklist end, Links)
+      dwellMs: 1000,             // ...for this long (Links, the one unit the agent scrolls to)
       dwellFixedMs: 250,         // ...and for this long for the sticky rail / floating bar, which are on screen the whole time: the first ad of a page loads ~0.75 s sooner
       tickMs: 200,               // how often the gate looks for a unit that is ready (was 400)
       lookaheadPx: 300,          // reserve (blank, labelled "Advertisement") the box this far before it scrolls in. It is NOT requested yet
@@ -61,16 +60,12 @@ window.ACES_CONFIG = {
     // at least `minGapSec` apart, and only while the global per-minute cap allows. Set max:0 for the old behaviour (one try, then gone).
     retryEmpty: { max: 3, minGapSec: 15 },
 
-    // Container fit: when a creative arrives, the container shrinks / grows to exactly the creative (no empty frame around a 300x250 inside a 600 px column).
-    // The rail is a separate column, so nothing beside it moves. Checklist end unit too (nothing below it). Links keeps its reserved box (its tiles re-centre).
-    fit: true,
-
-    // Right-hand skyscraper container: ONE unit in its own column. Its HEIGHT is the free space of the page: from just under the category bar down to the
-    // footer (minus `topGapPx` / `bottomGapPx`), re-measured on every resize. It never scrolls (overflow hidden) and holds a responsive unit with
-    // data-ad-format="auto", so AdSense picks the best-paying size that fits the column (`widthPx` wide). The box keeps the whole height whatever size
-    // arrives (the creative sits inside it), so nothing moves when it loads. On Scripts and Checklist it sticks while the cards scroll; Free-flow and the
-    // tool pages do not scroll, so it simply spans the page. Policy conditions are met by layout: it never overlaps content, keeps its label, sits clear of
-    // the scrollbar and of other units, and ends where the content ends. Below `minViewportW`, or with less than `minHeightPx` (+44 px of frame) free, there is no column.
+    // Right-hand skyscraper container: ONE unit in its own column, on Scripts, Checklist, Free-flow and the tool pages. Its size is FIXED and picked from the free height
+    // of the page (from just under the category bar down to the footer, minus `topGapPx` / `bottomGapPx`, re-measured on every resize): the first entry of `sizes` that fits
+    // (tallest first: 300x600, else 300x250), plus 40 px of frame. So the container is exactly as big as the ad: no empty frame, no clipped creative, nothing taller than
+    // the page, nothing moving when the ad arrives. On Scripts and Checklist it sticks while the cards scroll; Free-flow and the tool pages do not scroll. A 600 px
+    // creative needs about 644 px of free height; a shorter window gets the 300x250. Too short even for that = no column (never a bottom bar on Free-flow / Checklist).
+    // Column appears from `minViewportW` (1280) wide; `minViewportWByPage` lowers that for Free-flow and Checklist (1000), so their ad stays on the right in narrower windows.
     // The rail is requested only after it has been seen (gate above). RENEWAL RULE (user-requested refresh, no timer):
     //   1. The agent switches to a DIFFERENT category (Scripts) / checklist. Clicking the open one does nothing.
     //   2. The ad on screen must have been rendered more than `renewMinSec` ago (30 s), otherwise the switch keeps it. AdSense publishes NO minimum for user-requested
@@ -81,15 +76,14 @@ window.ACES_CONFIG = {
     // AdSense: "not permitted to refresh a page or an element of a page without the user requesting a refresh". It publishes no minimum interval for
     // user-requested ads, so `renewMinSec` is our own conservative floor. Set enabled:false to switch the rail off.
     // pages: where it appears (Errand-Notes never gets ads: customer data on screen). Free-flow and the tool pages never renew it (typing / calculating is not a refresh request).
-    rail: { enabled: true, pages: ['scripts', 'checklist', 'notes', 'fdcalc', 'frprompt'], minViewportW: 1280, widthPx: 300, minHeightPx: 250, topGapPx: 12, bottomGapPx: 12, gapPx: 16, renewMinSec: 30 },
-    // Floating bar for windows narrower than rail.minViewportW (the rail does not fit there): ONE unit docked between the content and the footer,
+    rail: { enabled: true, pages: ['scripts', 'checklist', 'notes', 'fdcalc', 'frprompt'], minViewportW: 1280, minViewportWByPage: { notes: 1000, checklist: 1000 }, widthPx: 300, sizes: [[300, 600], [300, 250]], topGapPx: 12, bottomGapPx: 12, gapPx: 16, renewMinSec: 30 },
+    // Floating bar for windows narrower than the page's rail width (the rail does not fit there): ONE unit docked between the content and the footer,
     // always visible, never moving with the scroll. It is a row of the app grid, so the content area ends above it: the last script card stops above
     // the bar and nothing is covered. Same request / renewal rules as the rail (renewMinSec above). Errand-Notes stays ad-free (customer data on screen):
     // add 'errands' to `pages` only after checking that against the client's policy. Links keeps its own unit; set `slots.links:''` if you want only the floating bar there.
-    // Free-flow ('notes') is listed again (Round 15): below `rail.minViewportW` it gets the bar, so it is no longer ad-free in narrow windows.
+    // Free-flow ('notes') and Checklist are NOT listed (Round 16): their ad is the right-hand skyscraper or nothing, never a bar at the bottom. Add them back here to get a bar in windows below their rail width.
     //   sizes: tried in order, first one that fits the content width.      minViewportH: below this window height no bar (it would eat the screen).
-    float: { enabled: true, pages: ['scripts', 'checklist', 'links', 'notes', 'fdcalc', 'frprompt'], sizes: [[728, 90], [320, 100]], minViewportH: 560 },
-    end: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },     // one unit after the last item (Checklist page)
+    float: { enabled: true, pages: ['scripts', 'links', 'fdcalc', 'frprompt'], sizes: [[728, 90], [320, 100]], minViewportH: 560 },
     links: { format: 'rectangle', reservePx: 280, boxMaxPx: 336 },   // bottom strip of the Links tab
   },
 

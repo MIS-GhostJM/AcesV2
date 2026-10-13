@@ -230,6 +230,7 @@ Same rule on the Checklist rail when a different checklist is opened. The first 
 
 
 ## Round 15: ad fill, request timing, container fit, empty-container recovery (policy-checked)
+*Parts of this round are superseded by Round 16 below: the "container fit" logic (#4) is replaced by fixed skyscraper sizes, and Free-flow (#8) no longer gets the bottom bar.*
 Touched: `assets/js/ads.js`, `assets/js/config.js`, `assets/css/ads.css`. Nothing else (data, cards, layout, tabs, footer, FDCalc / FRprompt markup are unchanged).
 
 **What changed**
@@ -262,3 +263,31 @@ Touched: `assets/js/ads.js`, `assets/js/config.js`, `assets/css/ads.css`. Nothin
 **Account side (code cannot do these)**: `slots.rail`, `slots.float`, `slots.tools` are still empty and fall back to `banner` (5267623137): create dedicated **responsive** display units so each placement has its own report line and `data-ad-format="auto"` is valid. ads.txt must read "Authorized". Keep Auto ads off for this site. Never click your own ads when testing.
 
 **Tested** in headless Chromium with a stubbed AdSense script (24 behaviour checks + geometry at 1920x1080, 1366x768, 1280x720, 1024x768, 390x800; `/FDCalc`, `/FRprompt`; zero page errors). **Not tested** against live AdSense or a live Netlify deploy: real responsive units may return other sizes or answer slower; the fit logic reads the creative's iframe, so check on the live site that a 300x250 / 300x600 sits snugly, and compare Active View viewable / impressions per page view / RPM for a week.
+
+
+## Round 16: skyscraper on the right only (Free-flow, Checklist), no bottom ads there, Free-flow layout lock
+Touched: `assets/js/ads.js`, `assets/js/config.js`, `assets/css/ads.css`, `assets/css/aces-upgrade.css` (one grid line). No data, card, tab or footer change.
+
+**Asked:** fix Free-flow notes (text area collapsed to a sliver, ads at the bottom); ads there must be the right-hand skyscraper; remove the Checklist ad at the bottom; always the right-hand skyscraper.
+
+**Done**
+| # | Change | Where |
+|---|---|---|
+| 1 | **Checklist end-of-list (bottom) unit removed**: code, CSS, `slots.end` (unit `7813895425` is now unused), `endPages`, `ads.end`. Checklist = right-hand skyscraper only | `ads.js`, `config.js`, `ads.css` |
+| 2 | **No bottom bar on Free-flow or Checklist** (`ads.float.pages` no longer lists `notes` / `checklist`). The Free-flow bar was added in Round 15; it is gone | `config.js` |
+| 3 | **Skyscraper stays on the right in narrower windows**: Free-flow and Checklist get the column from **1000 px** wide (`rail.minViewportWByPage`; Scripts and the tool pages keep 1280). Below 1000 px those two pages have **no ad** (never a bottom one) | `config.js`, `ads.js` (`railMinW`) |
+| 4 | **Fixed skyscraper sizes** (`rail.sizes`: **300x600**, else **300x250**), picked from the free height of the page (first that fits, plus 40 px frame). The container is exactly the size of the ad: nothing clipped, nothing taller than the page, nothing moves on load. This replaces the Round 14 "auto" unit and the Round 15 fit logic (an auto unit could return a 600 px creative into a 400 px box and clip it; Google asks that ads are not cut off) | `ads.js` (`pickRailSize`), `ads.css` |
+| 5 | **Free-flow layout lock**: the grid has one row of exactly the free height (`grid-template-rows:minmax(0,1fr)`) and the text area is stretched to it, so nothing in the ad column, or anything an ad network injects beside it, can change the text area's height | `aces-upgrade.css`, `ads.css` |
+| 6 | **Late mount**: if the first measurement of a page is taken before it has finished laying out (seen at 1000-1024 px wide, short window: 247 px instead of 353 px) the rail is no longer abandoned; it mounts as soon as the page has room | `ads.js` (`watchLate`) |
+| 7 | **Window shrinks after the ad is up**: the column is handed back (never clips the ad) and returns when there is room again, with no new request. The next explicit user action (30 s floor still applies) swaps the hidden ad for the size that fits now | `ads.js` (`refitRail`) |
+| 8 | **Diagnostic for Google Auto ads**: if AdSense inserts its own containers (`.google-auto-placed`, anchor, vignette), it is logged as `ads.auto_detected` (`acesMetrics.top('ads.auto_detected')`, or GA4 `ads_auto_detected`). Nothing Google serves is hidden or moved | `ads.js` (`watchAutoAds`) |
+
+**What the 600 px skyscraper needs.** About 644 px of free height (page height minus header, toolbars and footer). Full HD windows get 300x600. A 1366x768 laptop, or your 615 px-high screenshot, gets the 300x250 in the same right-hand column: a 600 px creative physically cannot fit there, and cropping it is not allowed. No code change can make a 600 px ad fit a 400 px box.
+
+**About the collapsed text area in the screenshot.** I could not reproduce the sliver in a clean run (stubbed ads, 1371x615, with and without a filled ad, old and new build). The fixes above remove the ways this build could cause it (bottom bar taking height, oversize creative, a late measurement), and #5 makes the text area independent of the ad column. If it still shows, the likeliest cause is **AdSense Auto ads** (Ads > By site > Auto ads: switch OFF): Google then injects its own ad blocks into the page, and in that case `ads.auto_detected` will appear in the metrics. Also check Netlify's "Powered by Netlify" badge: it is injected by Netlify, not ACES, and sits at the bottom-right where the bottom of the skyscraper ends.
+
+**Not changed (said so you can decide):** Scripts, Links and the tool pages still show the docked bar below 1280 px wide. If you want them skyscraper-only too, remove them from `ads.float.pages` and set `rail.minViewportWByPage` for them.
+
+**Account side:** unit `7813895425` (old Checklist end unit) is unused: if it is a display unit you can paste it into `slots.rail` to give the skyscraper its own report line. `slots.rail` / `float` / `tools` still fall back to `banner`. The skyscraper no longer needs a *responsive* unit: it sends fixed sizes (as the floating bar already did).
+
+**Tested** in headless Chromium with a stubbed AdSense script: 70 checks across three suites, zero page errors. Free-flow at 1920x1080, 1371x615, 1366x768, 1100x700, 1024x768, 1000x640 and 900x700; Checklist at 1440x900 and 1100x700 (also scrolled to the end); a window shrunk and re-enlarged after the ad loaded; a 300 px block injected into the Free-flow grid; renewal after a shrink; plus the Round 15 suites (empty-container recovery, actions, no-timer proof, tool pages, phone). **Not tested** against live AdSense or a live Netlify deploy.
